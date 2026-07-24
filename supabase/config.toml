@@ -1,0 +1,14 @@
+project_id = "nuageduo"
+
+[functions.sign-upload]
+verify_jwt = true
+
+[functions.sign-download]
+verify_jwt = true
+
+[functions.cleanup]
+verify_jwt = true
+
+# purge-trash est appelée par le cron avec un secret d'en-tête, pas un JWT utilisateur.
+[functions.purge-trash]
+verify_jwt = false
