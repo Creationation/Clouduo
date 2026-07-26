@@ -76,6 +76,12 @@ const dict = {
 
     'inbox.accepted': 'Ajouté à Mes fichiers',
     'upload.title': 'Ajouter des fichiers',
+    'share.accept': 'Accepter',
+    'share.files': 'fichier(s) partagé(s)',
+    'share.confirm': 'Ajouter',
+    'share.reading': 'Récupération',
+    'share.dest': 'Destination :',
+
     'upload.drop': 'Glisse tes fichiers ou tes dossiers ici',
     'upload.dropHint': 'Les sous-dossiers sont parcourus, seules les photos et vidéos sont prises',
     'upload.mobile': 'Photos / Vidéos',
@@ -221,6 +227,12 @@ const dict = {
 
     'inbox.accepted': 'Zu Meine Dateien hinzugefügt',
     'upload.title': 'Dateien hinzufügen',
+    'share.accept': 'Übernehmen',
+    'share.files': 'geteilte Datei(en)',
+    'share.confirm': 'Hinzufügen',
+    'share.reading': 'Wird gelesen',
+    'share.dest': 'Ziel:',
+
     'upload.drop': 'Dateien oder Ordner hierher ziehen',
     'upload.dropHint': 'Unterordner werden durchsucht, nur Fotos und Videos werden übernommen',
     'upload.mobile': 'Fotos / Videos',

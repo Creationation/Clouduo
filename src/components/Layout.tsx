@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { NavLink, Outlet, useLocation } from 'react-router-dom'
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/auth'
 import { useI18n, type TKey } from '../lib/i18n'
@@ -16,6 +16,7 @@ import {
   IconCopy,
 } from './icons'
 import InstallPrompt from './InstallPrompt'
+import { pendingShared, onShared } from '../lib/shareTarget'
 
 function useInboxCount(pathname: string) {
   const { session } = useAuth()
@@ -99,6 +100,24 @@ export default function Layout() {
 
   // Naviguer referme le menu.
   useEffect(() => setMenu(false), [loc.pathname])
+
+  // Partage Android: amener l'utilisateur sur l'écran d'ajout, où les
+  // fichiers reçus l'attendent. Sans ça il faudrait deviner qu'il faut aller
+  // dans « Ajouter » après avoir partagé depuis la galerie.
+  const nav = useNavigate()
+  useEffect(() => {
+    let done = false
+    pendingShared().then((f) => {
+      if (f.length && !done) nav('/upload')
+    })
+    const off = onShared((f) => {
+      if (f.length) nav('/upload')
+    })
+    return () => {
+      done = true
+      off()
+    }
+  }, [nav])
 
   return (
     <div className="flex h-full">
