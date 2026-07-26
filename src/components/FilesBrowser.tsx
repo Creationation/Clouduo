@@ -7,6 +7,7 @@ import {
   createFolder,
   trashFile,
   copyFile,
+  moveToShared,
   type KindFilter,
 } from '../lib/files'
 import { signBatch, downloadOriginal } from '../lib/urls'
@@ -14,11 +15,20 @@ import { createTransfer } from '../lib/transfers'
 import { setViewerList } from '../lib/viewerStore'
 import { useAuth } from '../lib/auth'
 import { useI18n } from '../lib/i18n'
+import { useToast } from '../lib/toast'
 import FileTile from './FileTile'
 import BottomSheet, { SheetButton } from './BottomSheet'
 import FileEditDialog from './FileEditDialog'
 import MoveDialog from './MoveDialog'
-import { IconFolder, IconChevron, IconDoc, IconCheck, IconMove, IconSend } from './icons'
+import {
+  IconFolder,
+  IconChevron,
+  IconDoc,
+  IconCheck,
+  IconMove,
+  IconSend,
+  IconShared,
+} from './icons'
 import { EmptyState, Spinner, formatBytes } from './ui'
 
 // media = galerie photos/vidéos, documents = tout le reste (kind 'other').
@@ -61,6 +71,7 @@ export default function FilesBrowser({
   const nav = useNavigate()
   const { other } = useAuth()
   const { t, lang } = useI18n()
+  const { show: toast } = useToast()
   const locale = lang === 'de' ? 'de-AT' : 'fr-FR'
 
   const [crumbs, setCrumbs] = useState<Crumb[]>([{ id: null, name: '' }])
@@ -74,6 +85,7 @@ export default function FilesBrowser({
   const [editing, setEditing] = useState<FileRow | null>(null)
   const [selection, setSelection] = useState<Set<string>>(new Set())
   const [moving, setMoving] = useState(false)
+  const [sharing, setSharing] = useState(false)
   const [sending, setSending] = useState(false)
 
   const folderId = crumbs[crumbs.length - 1].id
@@ -165,7 +177,36 @@ export default function FilesBrowser({
     setSending(true)
     try {
       for (const id of selection) await createTransfer(id, other.id)
+      toast(`${selection.size} · ${t('select.sent')}`, 'success')
       setSelection(new Set())
+    } catch (e) {
+      toast(e instanceof Error ? e.message : String(e), 'error')
+    } finally {
+      setSending(false)
+    }
+  }
+
+  // Vers le Commun: soit la ligne y va (déplacer), soit une seconde
+  // référence y est créée et l'original reste (copier). Aucun octet ne bouge
+  // dans les deux cas, c'est le même objet R2.
+  const toShared = async (mode: 'move' | 'copy') => {
+    const ids = [...selection]
+    setSharing(false)
+    setSending(true)
+    try {
+      if (mode === 'move') {
+        await moveToShared(ids)
+      } else {
+        for (const id of ids) await copyFile(id, 'shared', null)
+      }
+      toast(
+        `${ids.length} · ${t(mode === 'move' ? 'shared.moved' : 'shared.copied')}`,
+        'success',
+      )
+      setSelection(new Set())
+      load()
+    } catch (e) {
+      toast(e instanceof Error ? e.message : String(e), 'error')
     } finally {
       setSending(false)
     }
@@ -354,6 +395,17 @@ export default function FilesBrowser({
                   {t('action.send')} {other.display_name}
                 </button>
               )}
+              {/* Le Commun: déplacer (la ligne quitte le perso) ou copier
+                  (l'original reste). Deux intentions différentes, on laisse
+                  le choix au lieu d'en imposer une. */}
+              {scope === 'personal' && (
+                <button
+                  onClick={() => setSharing(true)}
+                  className="flex items-center gap-1.5 rounded-xl bg-[var(--color-surface-2)] px-3 py-2 text-xs"
+                >
+                  <IconShared size={15} /> {t('shared.title')}
+                </button>
+              )}
               <button
                 onClick={() => setMoving(true)}
                 className="flex items-center gap-1.5 rounded-xl bg-[var(--color-surface-2)] px-3 py-2 text-xs"
@@ -409,6 +461,23 @@ export default function FilesBrowser({
           onSaved={load}
         />
       )}
+
+      {/* Choix déplacer / copier vers le Commun */}
+      <BottomSheet
+        open={sharing}
+        onClose={() => setSharing(false)}
+        title={`${selection.size} ${t('select.count')}`}
+      >
+        <SheetButton onClick={() => toShared('move')}>
+          ☁ {t('shared.moveHere')}
+        </SheetButton>
+        <SheetButton onClick={() => toShared('copy')}>
+          ⧉ {t('shared.copyHere')}
+        </SheetButton>
+        <p className="px-4 pb-2 pt-1 text-xs text-[var(--color-muted)]">
+          {t('shared.moveCopyHint')}
+        </p>
+      </BottomSheet>
 
       {moving && (
         <MoveDialog

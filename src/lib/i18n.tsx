@@ -66,6 +66,14 @@ const dict = {
     'shared.title': 'Commun',
     'shared.empty': 'Le Commun est vide',
     'shared.media': 'Photos & vidéos',
+    'shared.moveHere': 'Déplacer dans le Commun',
+    'shared.copyHere': 'Copier dans le Commun',
+    'shared.moveCopyHint':
+      "Déplacer retire le fichier de ton espace. Copier l'y laisse et ajoute une référence : aucun octet n'est dupliqué.",
+    'shared.moved': 'déplacé(s) dans le Commun',
+    'shared.copied': 'copié(s) dans le Commun',
+    'select.sent': 'envoyé(s)',
+
     'inbox.accepted': 'Ajouté à Mes fichiers',
     'upload.title': 'Ajouter des fichiers',
     'upload.drop': 'Glisse tes fichiers ou tes dossiers ici',
@@ -203,6 +211,14 @@ const dict = {
     'shared.title': 'Gemeinsam',
     'shared.empty': 'Der gemeinsame Bereich ist leer',
     'shared.media': 'Fotos & Videos',
+    'shared.moveHere': 'In Gemeinsam verschieben',
+    'shared.copyHere': 'In Gemeinsam kopieren',
+    'shared.moveCopyHint':
+      'Verschieben entfernt die Datei aus deinem Bereich. Kopieren lässt sie dort und legt einen Verweis an: kein Byte wird dupliziert.',
+    'shared.moved': 'in Gemeinsam verschoben',
+    'shared.copied': 'in Gemeinsam kopiert',
+    'select.sent': 'gesendet',
+
     'inbox.accepted': 'Zu Meine Dateien hinzugefügt',
     'upload.title': 'Dateien hinzufügen',
     'upload.drop': 'Dateien oder Ordner hierher ziehen',

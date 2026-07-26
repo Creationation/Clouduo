@@ -17,21 +17,23 @@ import {
 } from './icons'
 import InstallPrompt from './InstallPrompt'
 
-function useInboxCount() {
+function useInboxCount(pathname: string) {
   const { session } = useAuth()
   const [count, setCount] = useState(0)
 
   useEffect(() => {
     if (!session) return
+    let alive = true
     const load = async () => {
       const { count } = await supabase
         .from('transfers')
         .select('id', { count: 'exact', head: true })
         .eq('to_user', session.user.id)
         .eq('status', 'pending')
-      setCount(count ?? 0)
+      if (alive) setCount(count ?? 0)
     }
     load()
+
     // Temps réel: badge mis à jour dès qu'un transfert arrive.
     const ch = supabase
       .channel('inbox')
@@ -41,10 +43,26 @@ function useInboxCount() {
         load,
       )
       .subscribe()
-    return () => {
-      supabase.removeChannel(ch)
+
+    // Filet de sécurité: le temps réel dépend de la publication Postgres et
+    // d'un WebSocket qui peut tomber. Un badge faux au point de rester
+    // affiché après acceptation est pire que pas de badge du tout, donc on
+    // recompte aussi au retour sur l'onglet.
+    const onVisible = () => {
+      if (!document.hidden) load()
     }
-  }, [session])
+    document.addEventListener('visibilitychange', onVisible)
+    window.addEventListener('focus', onVisible)
+
+    return () => {
+      alive = false
+      supabase.removeChannel(ch)
+      document.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener('focus', onVisible)
+    }
+    // pathname: recompter à chaque changement d'écran, notamment en quittant
+    // « Reçus » après avoir accepté.
+  }, [session, pathname])
 
   return count
 }
@@ -73,8 +91,8 @@ const places: { to: string; key: TKey; Icon: typeof IconGallery }[] = [
 
 export default function Layout() {
   const { t } = useI18n()
-  const inbox = useInboxCount()
   const loc = useLocation()
+  const inbox = useInboxCount(loc.pathname)
   const [menu, setMenu] = useState(false)
   // Le lecteur plein écran masque la barre (route viewer gérée à part).
   const hideBar = loc.pathname.startsWith('/view/')

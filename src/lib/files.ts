@@ -41,6 +41,23 @@ export async function moveFiles(ids: string[], folderId: string | null) {
   if (error) throw error
 }
 
+/**
+ * DÉPLACE des fichiers vers le Commun: la ligne elle-même change de scope,
+ * elle disparaît donc de l'espace perso. À distinguer de copyFile, qui laisse
+ * l'original en place et crée une seconde référence.
+ *
+ * Dans les deux cas l'objet R2 n'est ni recopié ni déplacé: seul le stockage
+ * logique change, les octets ne bougent pas.
+ */
+export async function moveToShared(ids: string[]) {
+  if (!ids.length) return
+  const { error } = await supabase
+    .from('files')
+    .update({ scope: 'shared', folder_id: null })
+    .in('id', ids)
+  if (error) throw error
+}
+
 export interface FolderNode extends Folder {
   depth: number
 }
