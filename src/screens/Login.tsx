@@ -11,14 +11,20 @@ const LANGS: { code: Lang; label: string; Flag: typeof FlagFR }[] = [
   { code: 'de', label: 'Deutsch', Flag: FlagAT },
 ]
 
-export default function Login() {
+export default function Login({
+  expiredRecovery = false,
+}: {
+  /** On arrive d'un lien de réinitialisation périmé: on l'explique et on
+   *  ouvre directement le formulaire de demande. */
+  expiredRecovery?: boolean
+}) {
   const { signIn, requestPasswordReset } = useAuth()
   const { t, lang, setLang } = useI18n()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [forgot, setForgot] = useState(false)
+  const [forgot, setForgot] = useState(expiredRecovery)
   const [sent, setSent] = useState(false)
 
   const submit = async (e: React.FormEvent) => {
@@ -76,6 +82,11 @@ export default function Login() {
         {forgot ? (
           // --- Mot de passe oublié: le lien part sur l'email du compte ---
           <form onSubmit={sendReset} className="space-y-3">
+            {expiredRecovery && !sent && (
+              <p className="rounded-xl border border-[var(--color-danger)]/40 bg-[var(--color-danger)]/10 px-4 py-2.5 text-sm text-[var(--color-danger)]">
+                {t('login.linkExpired')}
+              </p>
+            )}
             <p className="text-sm text-[var(--color-muted)]">
               {t('login.forgotHint')}
             </p>

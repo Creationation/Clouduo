@@ -32,8 +32,12 @@ function Loader() {
 function Gate() {
   const { session, loading, recovery } = useAuth()
   if (loading) return <Loader />
+  // Lien de réinitialisation arrivé mais aucune session ouverte: le jeton a
+  // expiré (1h) ou a déjà servi. Sans ce cas, on retombait sur le formulaire
+  // de connexion sans un mot d'explication, et l'écran semblait inexistant.
+  if (recovery && !session) return <Login expiredRecovery />
   if (!session) return <Login />
-  // Lien de réinitialisation: nouveau mot de passe obligatoire avant d'entrer.
+  // Lien valide: nouveau mot de passe obligatoire avant d'entrer.
   if (recovery)
     return (
       <Suspense fallback={<Loader />}>

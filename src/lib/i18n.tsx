@@ -41,6 +41,8 @@ const dict = {
     'login.loading': 'Connexion...',
     'login.tooMany': 'Trop de tentatives. Réessaie dans 15 minutes.',
     'login.forgot': 'Mot de passe oublié ?',
+    'login.linkExpired':
+      'Ce lien de réinitialisation a expiré ou a déjà servi. Demandes-en un nouveau.',
     'login.forgotHint':
       "Entre ton nom d'utilisateur ou ton email : un lien de réinitialisation part sur l'email du compte.",
     'login.forgotSend': 'Envoyer le lien',
@@ -160,6 +162,8 @@ const dict = {
     'login.loading': 'Anmeldung...',
     'login.tooMany': 'Zu viele Versuche. Bitte in 15 Minuten erneut versuchen.',
     'login.forgot': 'Passwort vergessen?',
+    'login.linkExpired':
+      'Dieser Link ist abgelaufen oder wurde bereits verwendet. Bitte einen neuen anfordern.',
     'login.forgotHint':
       'Gib deinen Benutzernamen oder deine E-Mail ein: Der Link geht an die E-Mail des Kontos.',
     'login.forgotSend': 'Link senden',
