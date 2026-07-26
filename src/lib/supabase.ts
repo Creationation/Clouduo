@@ -32,11 +32,14 @@ function safeKey(candidate: string | undefined): string {
   return candidate
 }
 
-// La clé publishable versionnée (.env.production) passe en premier: une
-// VITE_SUPABASE_ANON_KEY définie chez l'hébergeur ne peut plus l'écraser.
-const anonKey =
-  safeKey(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined) ||
-  safeKey(import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined)
+// UNE SEULE variable est lue, et surtout pas VITE_SUPABASE_ANON_KEY.
+// Vite remplace `import.meta.env.VITE_X` par la valeur littérale au build:
+// la simple présence de cette expression dans le code suffisait à recopier
+// la clé de l'hébergeur dans le bundle public, garde-fou ou pas. Ne plus la
+// nommer est le seul moyen sûr.
+const anonKey = safeKey(
+  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined,
+)
 
 if (!url || !anonKey) {
   console.error(
