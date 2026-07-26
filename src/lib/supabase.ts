@@ -1,12 +1,46 @@
 import { createClient } from '@supabase/supabase-js'
 
 const url = import.meta.env.VITE_SUPABASE_URL as string
-const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string
+
+/**
+ * Une clé SECRÈTE ne doit jamais atteindre un navigateur: elle contourne la
+ * RLS et donnerait à n'importe quel visiteur un accès total aux deux espaces
+ * privés. C'est arrivé le 2026-07-26 via une variable d'hébergeur mal
+ * renseignée, et rien dans le code ne s'y opposait. Ce garde-fou rend la
+ * même erreur impossible: on refuse la clé plutôt que de la publier.
+ */
+function safeKey(candidate: string | undefined): string {
+  if (!candidate) return ''
+  if (candidate.startsWith('sb_secret_')) {
+    console.error(
+      "SÉCURITÉ: une clé secrète Supabase a été fournie au client. Elle est ignorée. Utilise la clé 'publishable'.",
+    )
+    return ''
+  }
+  // Clé legacy service_role (JWT dont la charge utile contient le rôle).
+  try {
+    const payload = JSON.parse(atob(candidate.split('.')[1] ?? ''))
+    if (payload?.role === 'service_role') {
+      console.error(
+        'SÉCURITÉ: la clé service_role a été fournie au client. Elle est ignorée.',
+      )
+      return ''
+    }
+  } catch {
+    /* pas un JWT: rien à vérifier de plus */
+  }
+  return candidate
+}
+
+// La clé publishable versionnée (.env.production) passe en premier: une
+// VITE_SUPABASE_ANON_KEY définie chez l'hébergeur ne peut plus l'écraser.
+const anonKey =
+  safeKey(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined) ||
+  safeKey(import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined)
 
 if (!url || !anonKey) {
-  // Aide au debug: message clair si le .env.local n'est pas rempli.
   console.error(
-    'Config Supabase manquante. Renseigne VITE_SUPABASE_URL et VITE_SUPABASE_ANON_KEY dans .env.local',
+    'Config Supabase manquante ou refusée. Renseigne VITE_SUPABASE_URL et VITE_SUPABASE_PUBLISHABLE_KEY.',
   )
 }
 
