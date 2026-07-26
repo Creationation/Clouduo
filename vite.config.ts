@@ -36,11 +36,37 @@ export default defineConfig({
         ],
       },
       workbox: {
-        // Ne jamais mettre en cache les objets R2 (originaux/vidéos volumineuses)
-        // ni les réponses signées: on ne cache que le shell de l'app.
-        globPatterns: ['**/*.{js,css,html,svg,woff2}'],
+        // Le nouveau service worker prend la main tout de suite au lieu
+        // d'attendre la fermeture de tous les onglets.
+        clientsClaim: true,
+        skipWaiting: true,
+        cleanupOutdatedCaches: true,
+
+        // Ne jamais mettre en cache les objets R2 (originaux/vidéos
+        // volumineuses) ni les réponses signées: on ne garde que le shell.
+        //
+        // Le HTML est volontairement EXCLU du précache. Les fichiers js/css
+        // portent une empreinte dans leur nom, donc un déploiement crée de
+        // nouveaux noms et ne peut pas être servi périmé. index.html, lui,
+        // garde la même adresse: précaché, il continuait à référencer
+        // l'ancien bundle après un déploiement. C'est ce qui a fait tourner
+        // l'app bureau sur une version dont la clé API avait été révoquée,
+        // rendant toute connexion impossible sans message utile.
+        globPatterns: ['**/*.{js,css,woff2}'],
+        navigateFallback: undefined,
         navigateFallbackDenylist: [/^\/functions\//],
         runtimeCaching: [
+          {
+            // Navigation: le réseau d'abord, le cache seulement en secours.
+            // Un déploiement est donc pris en compte au chargement suivant.
+            urlPattern: ({ request }) => request.mode === 'navigate',
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'html',
+              networkTimeoutSeconds: 5,
+              expiration: { maxEntries: 4 },
+            },
+          },
           {
             urlPattern: ({ url }) => url.pathname.startsWith('/icons/'),
             handler: 'CacheFirst',
