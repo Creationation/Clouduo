@@ -6,7 +6,7 @@ import {
   type ReactNode,
 } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import { supabase } from './supabase'
+import { supabase, invokePublic } from './supabase'
 import type { Profile } from './types'
 
 interface AuthState {
@@ -16,8 +16,16 @@ interface AuthState {
   other: Profile | null
   profiles: Profile[]
   loading: boolean
-  signIn: (email: string, password: string) => Promise<{ error: string | null }>
+  /** Session ouverte via un lien de réinitialisation: imposer un nouveau mdp. */
+  recovery: boolean
+  signIn: (
+    username: string,
+    password: string,
+  ) => Promise<{ error: string | null }>
   signOut: () => Promise<void>
+  requestPasswordReset: (username: string) => Promise<void>
+  updatePassword: (password: string) => Promise<{ error: string | null }>
+  endRecovery: () => void
   refreshProfiles: () => Promise<void>
 }
 
@@ -27,6 +35,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [profiles, setProfiles] = useState<Profile[]>([])
   const [loading, setLoading] = useState(true)
+  const [recovery, setRecovery] = useState(false)
 
   const loadProfiles = async () => {
     const { data } = await supabase.from('profiles').select('*')
@@ -38,8 +47,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(data.session)
       setLoading(false)
     })
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((e, s) => {
       setSession(s)
+      // Lien de réinitialisation cliqué: la session est ouverte mais on doit
+      // exiger un nouveau mot de passe avant de laisser entrer.
+      if (e === 'PASSWORD_RECOVERY') setRecovery(true)
     })
     return () => sub.subscription.unsubscribe()
   }, [])
@@ -53,12 +65,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const profile = profiles.find((p) => p.id === uid) ?? null
   const other = profiles.find((p) => p.id !== uid) ?? null
 
-  const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+  // Connexion par NOM D'UTILISATEUR: l'Edge Function résout le compte et
+  // renvoie la session, l'email n'est jamais exposé au navigateur.
+  const signIn = async (username: string, password: string) => {
+    const { ok, status, data } = await invokePublic<{
+      access_token: string
+      refresh_token: string
+    }>('auth-username', { action: 'login', username: username.trim(), password })
+    // 429: trop d'échecs, compte bloqué quelques minutes.
+    if (status === 429) return { error: 'too_many' }
+    if (!ok || !data?.access_token) return { error: 'invalid' }
+    const { error } = await supabase.auth.setSession({
+      access_token: data.access_token,
+      refresh_token: data.refresh_token,
+    })
     return { error: error ? error.message : null }
   }
+
   const signOut = async () => {
     await supabase.auth.signOut()
+  }
+
+  // Le lien part sur l'email du compte. Réponse volontairement identique que
+  // le nom existe ou non.
+  const requestPasswordReset = async (username: string) => {
+    await invokePublic('auth-username', {
+      action: 'reset',
+      username: username.trim(),
+      redirectTo: window.location.origin,
+    })
+  }
+
+  const updatePassword = async (password: string) => {
+    const { error } = await supabase.auth.updateUser({ password })
+    return { error: error ? error.message : null }
   }
 
   return (
@@ -69,8 +109,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         other,
         profiles,
         loading,
+        recovery,
         signIn,
         signOut,
+        requestPasswordReset,
+        updatePassword,
+        endRecovery: () => setRecovery(false),
         refreshProfiles: loadProfiles,
       }}
     >

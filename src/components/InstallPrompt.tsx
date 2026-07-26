@@ -33,7 +33,7 @@ export default function InstallPrompt() {
     <div className="mx-auto mb-2 flex max-w-2xl items-center gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
       <span className="text-2xl">☁️</span>
       <p className="flex-1 text-xs text-[var(--color-muted)]">
-        Installe NuageDuo sur ton écran d'accueil.
+        Installe Clouduo sur ton écran d'accueil.
       </p>
       <button
         onClick={async () => {
@@ -41,7 +41,7 @@ export default function InstallPrompt() {
           await evt.userChoice
           setEvt(null)
         }}
-        className="rounded-lg bg-[var(--color-accent)] px-3 py-1.5 text-xs text-white"
+        className="glass-accent rounded-lg px-3 py-1.5 text-xs"
       >
         Installer
       </button>

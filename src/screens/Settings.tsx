@@ -4,6 +4,10 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/auth'
 import { useI18n, type Lang } from '../lib/i18n'
 import { Button, Spinner, formatBytes } from '../components/ui'
+import PasswordInput from '../components/PasswordInput'
+import { useTheme } from '../lib/theme'
+import { IconSun, IconMoon } from '../components/icons'
+import { FlagFR, FlagAT } from '../components/Flags'
 
 interface Bucket {
   bytes: number
@@ -37,6 +41,7 @@ export default function Settings() {
   const nav = useNavigate()
   const { profile, signOut } = useAuth()
   const { t, lang, setLang } = useI18n()
+  const { theme, setTheme } = useTheme()
   const [stats, setStats] = useState<Stats | null>(null)
 
   useEffect(() => {
@@ -54,7 +59,7 @@ export default function Settings() {
       )}
 
       {/* Stockage */}
-      <section className="mb-5 rounded-2xl bg-[var(--color-surface)] p-4">
+      <section className="glass mb-5 rounded-2xl p-4">
         <h2 className="mb-1 text-sm font-semibold">{t('settings.storage')}</h2>
         {!stats ? (
           <div className="py-6 text-center text-[var(--color-muted)]">
@@ -89,32 +94,147 @@ export default function Settings() {
       {/* Corbeille */}
       <button
         onClick={() => nav('/trash')}
-        className="mb-5 w-full rounded-xl bg-[var(--color-surface)] p-4 text-left text-sm"
+        className="glass mb-5 w-full rounded-xl p-4 text-left text-sm"
       >
         🗑 {t('settings.trashLink')}
       </button>
 
       {/* Langue */}
-      <section className="mb-5 rounded-2xl bg-[var(--color-surface)] p-4">
+      <section className="glass mb-5 rounded-2xl p-4">
         <h2 className="mb-2 text-sm font-semibold">{t('settings.lang')}</h2>
         <div className="inline-flex rounded-lg bg-[var(--color-surface-2)] p-1">
-          {(['fr', 'de'] as Lang[]).map((l) => (
+          {([
+            { code: 'fr' as Lang, label: 'Français', Flag: FlagFR },
+            { code: 'de' as Lang, label: 'Deutsch', Flag: FlagAT },
+          ]).map(({ code, label, Flag }) => (
             <button
-              key={l}
-              onClick={() => setLang(l)}
-              className={`rounded-md px-4 py-1.5 text-sm uppercase ${
-                lang === l ? 'bg-[var(--color-accent)] text-white' : 'text-[var(--color-muted)]'
+              key={code}
+              onClick={() => setLang(code)}
+              className={`flex items-center gap-2 rounded-md px-4 py-1.5 text-sm ${
+                lang === code ? 'glass-accent' : 'text-[var(--color-muted)]'
               }`}
             >
-              {l}
+              <Flag
+                size={20}
+                className="rounded-[2px] shadow-[0_0_0_1px_rgba(0,0,0,0.12)]"
+              />
+              {label}
             </button>
           ))}
         </div>
       </section>
 
+      {/* Apparence */}
+      <section className="glass mb-5 rounded-2xl p-4">
+        <h2 className="mb-2 text-sm font-semibold">{t('settings.theme')}</h2>
+        <div className="inline-flex rounded-lg bg-[var(--color-surface-2)] p-1">
+          {([
+            { key: 'light' as const, Icon: IconSun, label: t('theme.light') },
+            { key: 'dark' as const, Icon: IconMoon, label: t('theme.dark') },
+          ]).map(({ key, Icon, label }) => (
+            <button
+              key={key}
+              onClick={() => setTheme(key)}
+              className={`flex items-center gap-2 rounded-md px-4 py-1.5 text-sm transition ${
+                theme === key
+                  ? 'glass-accent'
+                  : 'text-[var(--color-muted)]'
+              }`}
+            >
+              <Icon size={16} />
+              {label}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {/* Mot de passe */}
+      <ChangePassword />
+
       <Button variant="danger" onClick={signOut} className="w-full">
         {t('settings.logout')}
       </Button>
     </div>
+  )
+}
+
+const MIN = 8
+
+// Changement de mot de passe: la session en cours suffit à autoriser la
+// modification côté Supabase, on demande donc juste une confirmation.
+function ChangePassword() {
+  const { t } = useI18n()
+  const { updatePassword } = useAuth()
+  const [open, setOpen] = useState(false)
+  const [pwd, setPwd] = useState('')
+  const [confirm, setConfirm] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [done, setDone] = useState(false)
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setDone(false)
+    if (pwd.length < MIN) return setError(t('pwd.tooShort'))
+    if (pwd !== confirm) return setError(t('pwd.mismatch'))
+    setLoading(true)
+    setError(null)
+    const { error } = await updatePassword(pwd)
+    setLoading(false)
+    if (error) return setError(error)
+    setPwd('')
+    setConfirm('')
+    setDone(true)
+    setOpen(false)
+  }
+
+  return (
+    <section className="glass mb-5 rounded-2xl p-4">
+      <h2 className="mb-2 text-sm font-semibold">{t('pwd.title')}</h2>
+
+      {done && (
+        <p className="mb-3 rounded-xl border border-[var(--color-success)]/40 bg-[var(--color-success)]/10 px-3 py-2 text-sm text-[var(--color-success)]">
+          ✓ {t('pwd.changed')}
+        </p>
+      )}
+
+      {open ? (
+        <form onSubmit={submit} className="space-y-3">
+          <PasswordInput
+            value={pwd}
+            onChange={setPwd}
+            placeholder={t('pwd.new')}
+            autoComplete="new-password"
+          />
+          <PasswordInput
+            value={confirm}
+            onChange={setConfirm}
+            placeholder={t('pwd.confirm')}
+            autoComplete="new-password"
+          />
+          <p className="text-xs text-[var(--color-muted)]">{t('pwd.rule')}</p>
+          {error && <p className="text-sm text-[var(--color-danger)]">{error}</p>}
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => {
+                setOpen(false)
+                setError(null)
+              }}
+            >
+              {t('action.cancel')}
+            </Button>
+            <Button type="submit" disabled={loading}>
+              {loading ? <Spinner /> : t('pwd.save')}
+            </Button>
+          </div>
+        </form>
+      ) : (
+        <Button variant="ghost" onClick={() => setOpen(true)} className="w-full">
+          {t('pwd.change')}
+        </Button>
+      )}
+    </section>
   )
 }

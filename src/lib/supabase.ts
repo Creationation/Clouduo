@@ -10,6 +10,27 @@ if (!url || !anonKey) {
   )
 }
 
+export const supabaseUrl = url
+export const supabaseAnonKey = anonKey
+
+/** Appel d'une Edge Function SANS session (connexion, mot de passe oublié). */
+export async function invokePublic<T>(
+  name: string,
+  body: unknown,
+): Promise<{ ok: boolean; status: number; data: T | null }> {
+  const res = await fetch(`${url}/functions/v1/${name}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      apikey: anonKey,
+      Authorization: `Bearer ${anonKey}`,
+    },
+    body: JSON.stringify(body),
+  })
+  const data = await res.json().catch(() => null)
+  return { ok: res.ok, status: res.status, data: data as T | null }
+}
+
 // Valeurs de repli pour éviter un crash au chargement si .env.local est vide:
 // l'app s'affiche (écran de connexion) et la connexion échouera proprement.
 export const supabase = createClient(url || 'http://localhost:54321', anonKey || 'anon', {

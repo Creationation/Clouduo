@@ -18,10 +18,10 @@ export function Button({
   children: ReactNode
 } & ButtonHTMLAttributes<HTMLButtonElement>) {
   const styles = {
-    primary: 'bg-[var(--color-accent)] text-white hover:opacity-90',
+    primary: 'glass-accent hover:brightness-110',
     ghost:
       'bg-[var(--color-surface-2)] text-[var(--color-text)] hover:bg-[var(--color-border)]',
-    danger: 'bg-[var(--color-danger)] text-white hover:opacity-90',
+    danger: 'glass-danger hover:brightness-110',
   }[variant]
   return (
     <button

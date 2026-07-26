@@ -16,6 +16,7 @@ export default function Inbox() {
   const [thumbs, setThumbs] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState<string | null>(null)
+  const [accepted, setAccepted] = useState(0)
 
   const load = async () => {
     const rows = await listInbox()
@@ -43,7 +44,10 @@ export default function Inbox() {
   const onAccept = async (id: string) => {
     setBusy(id)
     try {
+      // folderId null: le fichier arrive dans MON espace perso, pas dans le
+      // Commun. Le Commun ne sert qu'aux fichiers déposés pour nous deux.
       await acceptTransfer(id, null)
+      setAccepted((n) => n + 1)
       await load()
     } finally {
       setBusy(null)
@@ -62,6 +66,12 @@ export default function Inbox() {
   return (
     <div className="safe-top mx-auto max-w-2xl p-4">
       <h1 className="mb-4 text-xl font-semibold">{t('inbox.title')}</h1>
+
+      {accepted > 0 && (
+        <p className="page-in mb-4 rounded-xl border border-[var(--color-success)]/40 bg-[var(--color-success)]/10 px-4 py-2.5 text-sm text-[var(--color-success)]">
+          ✓ {accepted} · {t('inbox.accepted')}
+        </p>
+      )}
       {loading ? (
         <div className="flex justify-center py-16 text-[var(--color-muted)]">
           <Spinner />
@@ -73,7 +83,7 @@ export default function Inbox() {
           {items.map((it) => (
             <li
               key={it.id}
-              className="flex items-center gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3"
+              className="glass flex items-center gap-3 rounded-xl p-3"
             >
               <div className="h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-[var(--color-surface-2)]">
                 {it.file?.thumb_key && thumbs[it.file.thumb_key] ? (

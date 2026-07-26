@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import type { FileRow, Folder, Scope } from '../lib/types'
+import { useNavigate, NavLink } from 'react-router-dom'
+import type { FileRow, FileKind, Folder, Scope } from '../lib/types'
 import {
   listFiles,
   listFolders,
   createFolder,
-  renameFile,
   trashFile,
   copyFile,
   type KindFilter,
@@ -17,78 +16,121 @@ import { useAuth } from '../lib/auth'
 import { useI18n } from '../lib/i18n'
 import FileTile from './FileTile'
 import BottomSheet, { SheetButton } from './BottomSheet'
-import { IconFolder, IconChevron } from './icons'
-import { EmptyState, Spinner } from './ui'
+import FileEditDialog from './FileEditDialog'
+import MoveDialog from './MoveDialog'
+import { IconFolder, IconChevron, IconDoc, IconCheck, IconMove, IconSend } from './icons'
+import { EmptyState, Spinner, formatBytes } from './ui'
+
+// media = galerie photos/vidéos, documents = tout le reste (kind 'other').
+export type BrowserMode = 'media' | 'documents'
 
 interface Crumb {
   id: string | null
   name: string
 }
 
-// Regroupe les fichiers par mois (taken_at) pour l'affichage type galerie photo.
-function groupByMonth(files: FileRow[]) {
-  const groups: { key: string; label: string; files: FileRow[] }[] = []
+// Regroupe les fichiers par mois (taken_at) pour l'affichage type galerie.
+function groupByMonth(files: FileRow[], locale: string) {
   const map = new Map<string, FileRow[]>()
   for (const f of files) {
-    const d = f.taken_at ? new Date(f.taken_at) : new Date(f.created_at)
+    const d = new Date(f.taken_at ?? f.created_at)
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
     if (!map.has(key)) map.set(key, [])
     map.get(key)!.push(f)
   }
-  for (const [key, fs] of map) {
+  return [...map].map(([key, fs]) => {
     const [y, m] = key.split('-')
-    const label = new Date(Number(y), Number(m) - 1).toLocaleDateString('fr-FR', {
-      month: 'long',
-      year: 'numeric',
-    })
-    groups.push({ key, label, files: fs })
-  }
-  return groups
+    return {
+      key,
+      label: new Date(Number(y), Number(m) - 1).toLocaleDateString(locale, {
+        month: 'long',
+        year: 'numeric',
+      }),
+      files: fs,
+    }
+  })
 }
 
-export default function FilesBrowser({ scope }: { scope: Scope }) {
+export default function FilesBrowser({
+  scope,
+  mode = 'media',
+}: {
+  scope: Scope
+  mode?: BrowserMode
+}) {
   const nav = useNavigate()
   const { other } = useAuth()
-  const { t } = useI18n()
+  const { t, lang } = useI18n()
+  const locale = lang === 'de' ? 'de-AT' : 'fr-FR'
+
   const [crumbs, setCrumbs] = useState<Crumb[]>([{ id: null, name: '' }])
   const [kind, setKind] = useState<KindFilter>('all')
+  const [asc, setAsc] = useState(false)
   const [folders, setFolders] = useState<Folder[]>([])
   const [files, setFiles] = useState<FileRow[]>([])
   const [thumbs, setThumbs] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [sheet, setSheet] = useState<FileRow | null>(null)
+  const [editing, setEditing] = useState<FileRow | null>(null)
+  const [selection, setSelection] = useState<Set<string>>(new Set())
+  const [moving, setMoving] = useState(false)
+  const [sending, setSending] = useState(false)
 
   const folderId = crumbs[crumbs.length - 1].id
+  const isDocs = mode === 'documents'
+
+  // La galerie ne montre QUE photos et vidéos, les documents ont leur section.
+  const kinds: FileKind[] = useMemo(
+    () => (isDocs ? ['other'] : kind === 'all' ? ['photo', 'video'] : [kind as FileKind]),
+    [isDocs, kind],
+  )
 
   const load = useCallback(async () => {
     setLoading(true)
     const [fl, fi] = await Promise.all([
       listFolders(scope, folderId),
-      listFiles({ scope, folderId, kind }),
+      listFiles({ scope, folderId, kinds, asc }),
     ])
     setFolders(fl)
     setFiles(fi)
-    setViewerList(fi)
+    if (!isDocs) setViewerList(fi)
     setLoading(false)
-    // Signer les miniatures en un lot.
     const keys = fi.map((f) => f.thumb_key).filter(Boolean) as string[]
     if (keys.length) signBatch(keys).then(setThumbs)
     else setThumbs({})
-  }, [scope, folderId, kind])
+  }, [scope, folderId, kinds, asc, isDocs])
 
   useEffect(() => {
     load()
   }, [load])
 
-  const groups = useMemo(() => groupByMonth(files), [files])
+  // Une sélection n'a plus de sens après un changement de dossier ou de tri.
+  useEffect(() => {
+    setSelection(new Set())
+  }, [folderId, scope, mode, kind, asc])
+
+  const groups = useMemo(() => groupByMonth(files, locale), [files, locale])
 
   const openFolder = (f: Folder) => setCrumbs([...crumbs, { id: f.id, name: f.name }])
   const goCrumb = (i: number) => setCrumbs(crumbs.slice(0, i + 1))
 
+  // Un document n'a rien à faire dans la visionneuse: on le télécharge.
   const openFile = (f: FileRow) => {
+    if (isDocs) {
+      downloadOriginal(f.r2_key, f.name)
+      return
+    }
     setViewerList(files)
     nav(`/view/${scope}/${f.id}`)
   }
+
+  const toggle = (id: string) =>
+    setSelection((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
 
   const onNewFolder = async () => {
     const name = window.prompt(t('action.newFolder'))
@@ -101,13 +143,7 @@ export default function FilesBrowser({ scope }: { scope: Scope }) {
   // --- Actions sur un fichier ---
   const act = {
     download: (f: FileRow) => downloadOriginal(f.r2_key, f.name),
-    rename: async (f: FileRow) => {
-      const name = window.prompt(t('action.rename'), f.name)
-      if (name?.trim()) {
-        await renameFile(f.id, name.trim())
-        load()
-      }
-    },
+    edit: (f: FileRow) => setEditing(f),
     toShared: async (f: FileRow) => {
       await copyFile(f.id, 'shared', null)
     },
@@ -123,13 +159,31 @@ export default function FilesBrowser({ scope }: { scope: Scope }) {
     },
   }
 
+  // --- Actions sur la sélection ---
+  const sendSelection = async () => {
+    if (!other) return
+    setSending(true)
+    try {
+      for (const id of selection) await createTransfer(id, other.id)
+      setSelection(new Set())
+    } finally {
+      setSending(false)
+    }
+  }
+
+  const title = isDocs
+    ? scope === 'shared'
+      ? t('docs.shared')
+      : t('docs.title')
+    : scope === 'shared'
+      ? t('shared.title')
+      : t('gallery.mine')
+
   return (
     <div className="safe-top mx-auto max-w-3xl p-4">
       {/* Fil d'Ariane */}
       <div className="mb-2 flex items-center gap-1 text-sm">
-        <h1 className="font-semibold">
-          {scope === 'shared' ? t('shared.title') : t('gallery.mine')}
-        </h1>
+        <h1 className="font-semibold">{title}</h1>
         {crumbs.slice(1).map((c, i) => (
           <span key={c.id} className="flex items-center gap-1 text-[var(--color-muted)]">
             <IconChevron className="rotate-180" size={14} />
@@ -138,20 +192,61 @@ export default function FilesBrowser({ scope }: { scope: Scope }) {
         ))}
       </div>
 
-      {/* Filtres + nouveau dossier */}
-      <div className="mb-4 flex items-center justify-between">
-        <div className="inline-flex rounded-lg bg-[var(--color-surface)] p-1 text-xs">
-          {(['all', 'photo', 'video'] as KindFilter[]).map((k) => (
-            <button
-              key={k}
-              onClick={() => setKind(k)}
-              className={`rounded-md px-3 py-1.5 ${
-                kind === k ? 'bg-[var(--color-accent)] text-white' : 'text-[var(--color-muted)]'
-              }`}
+      {/* Le Commun gère ses deux onglets lui-même (absent du burger). */}
+      {scope === 'shared' && (
+        <div className="mb-3 inline-flex rounded-xl bg-[var(--color-surface)] p-1 text-xs">
+          {[
+            { to: '/shared', label: t('shared.media') },
+            { to: '/shared/docs', label: t('nav.docs') },
+          ].map((tab) => (
+            <NavLink
+              key={tab.to}
+              to={tab.to}
+              end
+              className={({ isActive }) =>
+                `rounded-lg px-4 py-2 transition ${
+                  isActive
+                    ? 'glass-accent'
+                    : 'text-[var(--color-muted)]'
+                }`
+              }
             >
-              {k === 'all' ? t('gallery.all') : k === 'photo' ? t('gallery.photos') : t('gallery.videos')}
-            </button>
+              {tab.label}
+            </NavLink>
           ))}
+        </div>
+      )}
+
+      {/* Filtres, tri, nouveau dossier */}
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          {!isDocs && (
+            <div className="inline-flex rounded-lg bg-[var(--color-surface)] p-1 text-xs">
+              {(['all', 'photo', 'video'] as KindFilter[]).map((k) => (
+                <button
+                  key={k}
+                  onClick={() => setKind(k)}
+                  className={`rounded-md px-3 py-1.5 ${
+                    kind === k
+                      ? 'glass-accent'
+                      : 'text-[var(--color-muted)]'
+                  }`}
+                >
+                  {k === 'all'
+                    ? t('gallery.all')
+                    : k === 'photo'
+                      ? t('gallery.photos')
+                      : t('gallery.videos')}
+                </button>
+              ))}
+            </div>
+          )}
+          <button
+            onClick={() => setAsc((v) => !v)}
+            className="rounded-lg bg-[var(--color-surface-2)] px-3 py-1.5 text-xs"
+          >
+            {asc ? t('sort.oldest') : t('sort.newest')}
+          </button>
         </div>
         <button
           onClick={onNewFolder}
@@ -167,7 +262,11 @@ export default function FilesBrowser({ scope }: { scope: Scope }) {
         </div>
       ) : folders.length === 0 && files.length === 0 ? (
         <EmptyState>
-          {scope === 'shared' ? t('shared.empty') : t('gallery.empty')}
+          {isDocs
+            ? t('docs.empty')
+            : scope === 'shared'
+              ? t('shared.empty')
+              : t('gallery.empty')}
         </EmptyState>
       ) : (
         <>
@@ -178,7 +277,7 @@ export default function FilesBrowser({ scope }: { scope: Scope }) {
                 <button
                   key={f.id}
                   onClick={() => openFolder(f)}
-                  className="flex items-center gap-2 rounded-xl bg-[var(--color-surface)] p-3 text-left text-sm"
+                  className="glass-soft flex items-center gap-2 rounded-xl p-3 text-left text-sm"
                 >
                   <IconFolder size={20} className="text-[var(--color-accent)]" />
                   <span className="truncate">{f.name}</span>
@@ -193,27 +292,83 @@ export default function FilesBrowser({ scope }: { scope: Scope }) {
               <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--color-muted)]">
                 {g.label}
               </h2>
-              <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4 md:grid-cols-5">
-                {g.files.map((f) => (
-                  <div key={f.id} className="relative">
-                    <FileTile
+
+              {isDocs ? (
+                <div className="flex flex-col gap-1.5">
+                  {g.files.map((f) => (
+                    <DocRow
+                      key={f.id}
                       file={f}
-                      thumbUrl={f.thumb_key ? thumbs[f.thumb_key] : undefined}
-                      onClick={() => openFile(f)}
+                      locale={locale}
+                      selected={selection.has(f.id)}
+                      onToggle={() => toggle(f.id)}
+                      onOpen={() => openFile(f)}
+                      onMore={() => setSheet(f)}
                     />
-                    <button
-                      onClick={() => setSheet(f)}
-                      className="absolute right-1 top-1 rounded-full bg-black/50 px-1.5 text-white"
-                      aria-label="actions"
-                    >
-                      ⋯
-                    </button>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4 md:grid-cols-5">
+                  {g.files.map((f) => (
+                    <div key={f.id} className="relative">
+                      <FileTile
+                        file={f}
+                        thumbUrl={f.thumb_key ? thumbs[f.thumb_key] : undefined}
+                        onClick={() => openFile(f)}
+                      />
+                      <SelectDot
+                        selected={selection.has(f.id)}
+                        onClick={() => toggle(f.id)}
+                      />
+                      <button
+                        onClick={() => setSheet(f)}
+                        className="absolute right-0.5 top-0.5 flex h-7 w-7 items-center justify-center rounded-full bg-black/50 text-white"
+                        aria-label="actions"
+                      >
+                        ⋯
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </section>
           ))}
         </>
+      )}
+
+      {/* Barre d'actions: apparaît dès qu'un fichier est sélectionné */}
+      {selection.size > 0 && (
+        <div className="sticky bottom-2 z-30 mt-4">
+          <div className="glass mx-auto flex max-w-md items-center gap-2 rounded-2xl p-2">
+            <span className="pl-2 text-xs text-[var(--color-muted)]">
+              {selection.size} {t('select.count')}
+            </span>
+            <div className="ml-auto flex items-center gap-1.5">
+              {other && (
+                <button
+                  onClick={sendSelection}
+                  disabled={sending}
+                  className="glass-accent flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-medium disabled:opacity-50"
+                >
+                  {sending ? <Spinner className="h-4 w-4" /> : <IconSend size={15} />}
+                  {t('action.send')} {other.display_name}
+                </button>
+              )}
+              <button
+                onClick={() => setMoving(true)}
+                className="flex items-center gap-1.5 rounded-xl bg-[var(--color-surface-2)] px-3 py-2 text-xs"
+              >
+                <IconMove size={15} /> {t('action.move')}
+              </button>
+              <button
+                onClick={() => setSelection(new Set())}
+                className="rounded-xl px-2 py-2 text-xs text-[var(--color-muted)]"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Feuille d'actions */}
@@ -237,8 +392,8 @@ export default function FilesBrowser({ scope }: { scope: Scope }) {
                 ↙ {t('action.recover')}
               </SheetButton>
             )}
-            <SheetButton onClick={() => run(act.rename, sheet, setSheet)}>
-              ✎ {t('action.rename')}
+            <SheetButton onClick={() => run(act.edit, sheet, setSheet)}>
+              ✎ {t('action.edit')}
             </SheetButton>
             <SheetButton danger onClick={() => run(act.remove, sheet, setSheet)}>
               🗑 {t('action.delete')}
@@ -246,6 +401,113 @@ export default function FilesBrowser({ scope }: { scope: Scope }) {
           </>
         )}
       </BottomSheet>
+
+      {editing && (
+        <FileEditDialog
+          file={editing}
+          onClose={() => setEditing(null)}
+          onSaved={load}
+        />
+      )}
+
+      {moving && (
+        <MoveDialog
+          ids={[...selection]}
+          scope={scope}
+          onClose={() => setMoving(false)}
+          onMoved={() => {
+            setSelection(new Set())
+            load()
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
+// Pastille de sélection sur une tuile de galerie.
+function SelectDot({ selected, onClick }: { selected: boolean; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      aria-label="select"
+      className={`absolute left-1 top-1 flex h-5 w-5 items-center justify-center rounded-full border-2 transition ${
+        selected
+          ? 'glass-accent border-transparent'
+          : 'border-white/80 bg-black/30 text-transparent'
+      }`}
+    >
+      <IconCheck size={12} />
+    </button>
+  )
+}
+
+// Ligne de document: chaque fichier porte sa propre date.
+function DocRow({
+  file,
+  locale,
+  selected,
+  onToggle,
+  onOpen,
+  onMore,
+}: {
+  file: FileRow
+  locale: string
+  selected: boolean
+  onToggle: () => void
+  onOpen: () => void
+  onMore: () => void
+}) {
+  const d = new Date(file.taken_at ?? file.created_at)
+  const ext = file.name.slice(file.name.lastIndexOf('.') + 1).toUpperCase()
+  return (
+    <div
+      className={`flex items-center gap-3 rounded-xl border p-2.5 transition ${
+        selected
+          ? 'border-[var(--color-accent)] bg-[var(--color-accent-soft)]/20'
+          : 'border-transparent bg-[var(--color-surface)]'
+      }`}
+    >
+      <button
+        onClick={onToggle}
+        aria-label="select"
+        className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${
+          selected
+            ? 'glass-accent border-transparent'
+            : 'border-[var(--color-border)] text-transparent'
+        }`}
+      >
+        <IconCheck size={12} />
+      </button>
+
+      <button onClick={onOpen} className="flex min-w-0 flex-1 items-center gap-3 text-left">
+        <span className="relative shrink-0 text-[var(--color-muted)]">
+          <IconDoc size={26} />
+          <span className="absolute inset-x-0 bottom-1 text-center text-[7px] font-bold">
+            {ext.slice(0, 4)}
+          </span>
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm">{file.name}</span>
+          <span className="block text-xs text-[var(--color-muted)]">
+            {d.toLocaleDateString(locale, {
+              day: '2-digit',
+              month: 'short',
+              year: 'numeric',
+            })}
+            {' · '}
+            {formatBytes(file.size_bytes)}
+          </span>
+        </span>
+      </button>
+
+      <button
+        onClick={onMore}
+        aria-label="actions"
+        className="shrink-0 px-2 text-[var(--color-muted)]"
+      >
+        ⋯
+      </button>
     </div>
   )
 }

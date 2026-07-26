@@ -1,21 +1,140 @@
 @import 'tailwindcss';
 
-/* Thème sombre par défaut, mobile-first, sobre */
+/* Palette de base. Les valeurs réelles sont posées plus bas par thème:
+   le clair est le défaut, le sombre s'active via [data-theme='dark']. */
 @theme {
-  --color-bg: #0b0f14;
-  --color-surface: #131a22;
-  --color-surface-2: #1b2530;
-  --color-border: #243040;
-  --color-text: #e6edf3;
-  --color-muted: #8b98a5;
-  --color-accent: #3b82f6;
-  --color-accent-soft: #1e3a5f;
-  --color-danger: #ef4444;
-  --color-success: #22c55e;
+  --color-bg: #eaeefb;
+  --color-surface: rgba(255, 255, 255, 0.55);
+  --color-surface-2: rgba(255, 255, 255, 0.35);
+  --color-border: rgba(255, 255, 255, 0.55);
+  --color-text: #131c2b;
+  --color-muted: #5c6b82;
+  --color-accent: #3b6ef6;
+  --color-accent-soft: #c9d9ff;
+  --color-danger: #e0384a;
+  --color-success: #129a5c;
 }
 
+/* --- Thème clair (défaut) --- */
 :root {
+  color-scheme: light;
+  --color-bg: #e7ecfb;
+  --color-surface: rgba(255, 255, 255, 0.28);
+  --color-surface-2: rgba(255, 255, 255, 0.18);
+  --color-border: rgba(255, 255, 255, 0.45);
+  --color-text: #101828;
+  --color-muted: #4a5a72;
+  --color-accent: #3b6ef6;
+  --color-accent-soft: #c9d9ff;
+  --color-danger: #e0384a;
+  --color-success: #0e8f55;
+
+  /* Composantes RVB: indispensables pour teinter du verre en gardant la
+     transparence (rgb(... / alpha)). Une couleur hexa donnerait un aplat. */
+  --accent-rgb: 59 110 246;
+  --danger-rgb: 224 56 74;
+
+  /* Un fond coloré et contrasté est la condition du verre: sans lui le flou
+     n'a rien à diffuser et les panneaux retombent en gris plat. */
+  --app-bg:
+    radial-gradient(at 12% 18%, rgba(88, 140, 255, 0.62) 0px, transparent 52%),
+    radial-gradient(at 88% 12%, rgba(255, 138, 216, 0.5) 0px, transparent 50%),
+    radial-gradient(at 78% 82%, rgba(94, 214, 255, 0.55) 0px, transparent 50%),
+    radial-gradient(at 20% 88%, rgba(168, 132, 255, 0.5) 0px, transparent 52%),
+    linear-gradient(135deg, #eef2ff 0%, #fdf1f8 100%);
+
+  --glass-bg: rgba(255, 255, 255, 0.17);
+  --glass-panel: rgba(255, 255, 255, 0.17);
+  --glass-menu-bg: rgba(255, 255, 255, 0.78);
+  --glass-border: rgba(255, 255, 255, 0.3);
+  --glass-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.1);
+  --glass-line: rgba(255, 255, 255, 0.8);
+  --glass-line-soft: rgba(255, 255, 255, 0.3);
+
+  /* Reflet spéculaire: la diagonale claire qui fait lire la surface comme un
+     miroir plutôt que comme un simple voile translucide. */
+  --glass-mirror: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.5) 0%,
+    rgba(255, 255, 255, 0.12) 32%,
+    rgba(255, 255, 255, 0) 55%,
+    rgba(255, 255, 255, 0.08) 100%
+  );
+  --glass-blur: blur(18px) saturate(180%);
+
+  /* Bille de verre, version claire: irisation très pâle, halo blanc large. */
+  --orb-tint: rgba(255, 255, 255, 0.32);
+  --orb-c1: rgba(178, 224, 255, 0.8); /* cyan, haut-gauche */
+  --orb-c2: rgba(202, 194, 255, 0.72); /* violet, centre */
+  --orb-c3: rgba(255, 200, 238, 0.78); /* rose, bas-droite */
+  --orb-rim: rgba(255, 255, 255, 0.95);
+  --orb-ring: rgba(255, 255, 255, 0.6);
+  --orb-shadow:
+    0 0 80px rgba(255, 255, 255, 0.85), 0 0 170px rgba(214, 222, 255, 0.6),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.45),
+    inset -20px -24px 46px -22px rgba(255, 255, 255, 0.95),
+    inset 24px 28px 54px -26px rgba(255, 255, 255, 0.85);
+  --orb-blur: blur(10px) saturate(160%);
+}
+
+/* --- Thème sombre --- */
+:root[data-theme='dark'] {
   color-scheme: dark;
+  --color-bg: #080c16;
+  --color-surface: rgba(255, 255, 255, 0.08);
+  --color-surface-2: rgba(255, 255, 255, 0.05);
+  --color-border: rgba(255, 255, 255, 0.16);
+  --color-text: #eef2f8;
+  --color-muted: #9aa8bd;
+  --color-accent: #5b8cff;
+  --color-accent-soft: #1e3a5f;
+  --color-danger: #f2646f;
+  --color-success: #34d399;
+
+  --accent-rgb: 91 140 255;
+  --danger-rgb: 242 100 111;
+
+  --app-bg:
+    radial-gradient(at 12% 18%, rgba(59, 96, 220, 0.5) 0px, transparent 52%),
+    radial-gradient(at 88% 12%, rgba(190, 60, 160, 0.38) 0px, transparent 50%),
+    radial-gradient(at 78% 82%, rgba(30, 150, 200, 0.4) 0px, transparent 50%),
+    radial-gradient(at 20% 88%, rgba(110, 70, 220, 0.42) 0px, transparent 52%),
+    linear-gradient(135deg, #0a0f1c 0%, #140f22 100%);
+
+  --glass-bg: rgba(255, 255, 255, 0.08);
+  --glass-panel: rgba(255, 255, 255, 0.09);
+  --glass-menu-bg: rgba(22, 28, 44, 0.86);
+  --glass-border: rgba(255, 255, 255, 0.18);
+  --glass-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.05);
+  --glass-line: rgba(255, 255, 255, 0.6);
+  --glass-line-soft: rgba(255, 255, 255, 0.16);
+
+  --glass-mirror: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.22) 0%,
+    rgba(255, 255, 255, 0.05) 32%,
+    rgba(255, 255, 255, 0) 55%,
+    rgba(255, 255, 255, 0.04) 100%
+  );
+  --glass-blur: blur(20px) saturate(170%);
+
+  /* En sombre: plus grosse et franchement irisée, le halo remplace l'ombre. */
+  --orb-tint: rgba(255, 255, 255, 0.16);
+  --orb-c1: rgba(96, 196, 255, 0.88);
+  --orb-c2: rgba(150, 126, 255, 0.85);
+  --orb-c3: rgba(255, 124, 214, 0.84);
+  --orb-rim: rgba(255, 255, 255, 0.85);
+  --orb-ring: rgba(255, 255, 255, 0.35);
+  --orb-shadow:
+    0 0 100px rgba(180, 140, 255, 0.45), 0 0 210px rgba(110, 175, 255, 0.28),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.3),
+    inset -20px -24px 46px -22px rgba(255, 255, 255, 0.8),
+    inset 24px 28px 54px -26px rgba(255, 255, 255, 0.7);
+  --orb-blur: blur(12px) saturate(150%);
 }
 
 html,
@@ -27,6 +146,8 @@ body,
 body {
   margin: 0;
   background: var(--color-bg);
+  background-image: var(--app-bg);
+  background-attachment: fixed;
   color: var(--color-text);
   font-family:
     system-ui,
@@ -36,6 +157,215 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   overscroll-behavior-y: none;
+  transition:
+    background-color 300ms ease,
+    color 300ms ease;
+}
+
+/* --- Bille de verre en fond --- */
+/* Elle passe SOUS l'interface: les panneaux la floutent au passage, ce qui
+   donne sa profondeur au verre. D'où le z-index et #root au-dessus. */
+.orb-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+#root {
+  position: relative;
+  z-index: 1;
+}
+
+/* Les positions sont pilotées par src/lib/orbs.ts (rebond sur les bords et
+   entre bulles). Le CSS ne gère plus que l'apparence et les tailles. */
+.orb-1 {
+  --orb-size: 170px;
+}
+.orb-2 {
+  --orb-size: 120px;
+}
+.orb-3 {
+  --orb-size: 205px;
+}
+
+.orb {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: var(--orb-size);
+  height: var(--orb-size);
+  border-radius: 50%;
+  /* Irisation de bulle de savon: cyan en haut à gauche, violet au centre,
+     rose en bas à droite. Les trois foyers décentrés font lire une sphère. */
+  background:
+    radial-gradient(circle at 26% 20%, var(--orb-c1) 0%, transparent 58%),
+    radial-gradient(circle at 58% 55%, var(--orb-c2) 0%, transparent 62%),
+    radial-gradient(circle at 76% 84%, var(--orb-c3) 0%, transparent 60%),
+    var(--orb-tint);
+  backdrop-filter: var(--orb-blur);
+  -webkit-backdrop-filter: var(--orb-blur);
+  /* Le liseré vif est ce qui donne la paroi de la bulle. */
+  border: 1px solid var(--orb-rim);
+  box-shadow: var(--orb-shadow);
+  will-change: transform;
+}
+
+/* Mobile: une seule bulle et des flous plus légers. Trois backdrop-filter en
+   mouvement plus ceux des panneaux mettent un téléphone à genoux. */
+@media (max-width: 640px) {
+  .orb-2,
+  .orb-3 {
+    display: none;
+  }
+  :root {
+    --orb-blur: blur(6px) saturate(150%);
+    --glass-blur: blur(12px) saturate(160%);
+  }
+  :root[data-theme='dark'] {
+    --orb-blur: blur(7px) saturate(140%);
+    --glass-blur: blur(13px) saturate(150%);
+  }
+}
+
+/* Paroi intérieure: le second cercle concentrique, plus lumineux en bas, qui
+   distingue une bulle creuse d'un simple disque dégradé. */
+.orb::before {
+  content: '';
+  position: absolute;
+  inset: 4.5%;
+  border-radius: 50%;
+  border: 1px solid var(--orb-ring);
+  box-shadow:
+    inset 0 -18px 30px -16px rgba(255, 255, 255, 0.9),
+    inset 6px 8px 20px -14px rgba(255, 255, 255, 0.7);
+}
+
+/* Éclats spéculaires: la grappe en haut à gauche, la traînée à droite et
+   quelques piqûres de lumière. C'est ce qui trahit une surface polie. */
+.orb::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background:
+    radial-gradient(ellipse 15% 8% at 26% 19%, rgba(255, 255, 255, 0.95), transparent 70%),
+    radial-gradient(ellipse 8% 4.5% at 19% 26%, rgba(255, 255, 255, 0.8), transparent 72%),
+    radial-gradient(ellipse 5% 3% at 34% 28%, rgba(255, 255, 255, 0.7), transparent 72%),
+    radial-gradient(ellipse 4% 17% at 73% 40%, rgba(255, 255, 255, 0.5), transparent 72%),
+    radial-gradient(ellipse 2.5% 2% at 17% 54%, rgba(255, 255, 255, 0.6), transparent 74%),
+    radial-gradient(ellipse 2% 1.6% at 29% 64%, rgba(255, 255, 255, 0.5), transparent 74%);
+  transform: rotate(-8deg);
+}
+
+/* --- Verre --- */
+/* .glass: panneaux et cartes. Les deux liserés (haut et gauche) sont ce qui
+   donne l'impression d'une tranche de verre éclairée. overflow hidden les
+   contient dans les coins arrondis: à ne pas utiliser sur un conteneur dont
+   un enfant doit déborder. */
+.glass {
+  /* Deux couches: le reflet diagonal par-dessus la teinte translucide. */
+  background: var(--glass-mirror), var(--glass-panel);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  position: relative;
+  overflow: hidden;
+}
+.glass::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--glass-line), transparent);
+  pointer-events: none;
+}
+.glass::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 100%;
+  background: linear-gradient(
+    180deg,
+    var(--glass-line),
+    transparent,
+    var(--glass-line-soft)
+  );
+  pointer-events: none;
+}
+
+/* Variante légère: pour les tuiles et petits éléments répétés, sans flou
+   (un backdrop-filter par vignette écroulerait le défilement d'une galerie). */
+.glass-soft {
+  background: var(--glass-mirror), var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+/* Menu: du verre, mais plus dense. Un panneau de navigation doit rester
+   lisible par-dessus n'importe quel contenu, contrairement à une carte posée
+   dans le flux de la page. */
+.glass-menu {
+  background: var(--glass-mirror), var(--glass-menu-bg);
+  backdrop-filter: blur(24px) saturate(190%);
+  -webkit-backdrop-filter: blur(24px) saturate(190%);
+}
+
+/* Variante barre: pas d'overflow hidden, pour laisser sortir le menu qui
+   s'ouvre au-dessus. */
+.glass-bar {
+  background: var(--glass-mirror), var(--glass-panel);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border-top: 1px solid var(--glass-border);
+  box-shadow:
+    0 -8px 32px rgba(0, 0, 0, 0.12),
+    inset 0 1px 0 var(--glass-line);
+  position: relative;
+}
+
+/* --- Boutons et états actifs, en verre teinté --- */
+/* Un aplat de bleu au milieu de panneaux en verre casse tout l'effet: les
+   éléments colorés sont donc du verre teinté, avec le même reflet et les
+   mêmes arêtes lumineuses. */
+.glass-accent,
+.glass-danger {
+  backdrop-filter: blur(12px) saturate(170%);
+  -webkit-backdrop-filter: blur(12px) saturate(170%);
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  color: #fff;
+  position: relative;
+  overflow: hidden;
+}
+.glass-accent {
+  background: var(--glass-mirror), rgb(var(--accent-rgb) / 0.72);
+  box-shadow:
+    0 6px 20px rgb(var(--accent-rgb) / 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.12);
+}
+.glass-danger {
+  background: var(--glass-mirror), rgb(var(--danger-rgb) / 0.72);
+  box-shadow:
+    0 6px 20px rgb(var(--danger-rgb) / 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.12);
+}
+.glass-accent::before,
+.glass-danger::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.9), transparent);
+  pointer-events: none;
 }
 
 /* Zone sûre iOS (encoche + barre du bas) */
@@ -63,4 +393,43 @@ body {
 
 button {
   font: inherit;
+}
+
+input,
+textarea {
+  color: inherit;
+}
+input::placeholder {
+  color: var(--color-muted);
+}
+
+/* Changement d'écran: entrée en fondu + léger glissement, jamais de coupure
+   sèche. La clé de route déclenche l'animation à chaque navigation. */
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.page-in {
+  animation: page-in 260ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+/* Accessibilité: on respecte le réglage système "moins d'animations". */
+@media (prefers-reduced-motion: reduce) {
+  .page-in {
+    animation: none;
+  }
+  /* Les bulles sont simplement placées sans boucle (voir orbs.ts): le décor
+     reste, rien ne bouge. */
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

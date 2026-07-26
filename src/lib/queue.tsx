@@ -10,15 +10,18 @@ import {
   allItems,
   deleteItem,
   putItem,
+  putItems,
   type QueueItem,
   type QueueStatus,
 } from './db'
-import { detectKind } from './media'
+import { detectKind, resolveMime } from './media'
 import { processItem } from './uploader'
 import { invokeFunction } from './supabase'
 import type { Scope } from './types'
 
-const CONCURRENCY = 2
+// Fichiers traités en parallèle. Chaque gros fichier ouvre en plus plusieurs
+// parts simultanées (voir uploader.ts), d'où une valeur volontairement basse.
+const CONCURRENCY = 3
 
 interface AddOptions {
   scope: Scope
@@ -117,15 +120,16 @@ export function QueueProvider({ children }: { children: ReactNode }) {
   }
 
   const add: QueueContextValue['add'] = async (files, opts) => {
-    const arr = Array.from(files)
-    for (const file of arr) {
-      const item: QueueItem = {
+    const created: QueueItem[] = []
+    for (const file of Array.from(files)) {
+      const mime = resolveMime(file)
+      created.push({
         id: uuid(),
         file,
         name: file.name,
         size: file.size,
-        mime: file.type || 'application/octet-stream',
-        kind: detectKind(file.type || ''),
+        mime,
+        kind: detectKind(mime),
         scope: opts.scope,
         folderId: opts.folderId ?? null,
         status: 'pending',
@@ -133,10 +137,12 @@ export function QueueProvider({ children }: { children: ReactNode }) {
         sendToUserId: opts.sendToUserId,
         note: opts.note,
         createdAt: Date.now(),
-      }
-      itemsRef.current.push(item)
-      await persist(item)
+      })
     }
+    itemsRef.current.push(...created)
+    // Une seule transaction: ajouter un dossier de milliers de fichiers doit
+    // rester instantané.
+    await putItems(created)
     rerender()
     pump()
   }

@@ -8,13 +8,21 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1"
     />
-    <meta name="theme-color" content="#0b0f14" />
+    <meta name="theme-color" content="#dbe4ff" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="mobile-web-app-capable" content="yes" />
-    <title>NuageDuo</title>
+    <title>Clouduo</title>
   </head>
   <body>
+    <!-- Bulles de verre qui ricochent lentement sur les bords. Hors de #root:
+         visibles sur tous les écrans, connexion comprise, et pas redessinées
+         au rythme de React. -->
+    <div class="orb-layer" aria-hidden="true">
+      <div class="orb orb-1"></div>
+      <div class="orb orb-2"></div>
+      <div class="orb orb-3"></div>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

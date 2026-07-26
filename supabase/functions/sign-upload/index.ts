@@ -15,7 +15,9 @@ import { r2Client, bucket, safeName } from '../_shared/r2.ts'
 import { requireUser } from '../_shared/auth.ts'
 import { corsHeaders, json, preflight } from '../_shared/cors.ts'
 
-const EXPIRES = 3600 // 1h
+// Marge large: une part signée puis mise en file derrière des dizaines de Go
+// ne doit pas expirer avant son tour (le client re-signe en secours).
+const EXPIRES = 6 * 3600 // 6h
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return preflight()

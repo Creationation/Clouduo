@@ -5,11 +5,14 @@ export type Scope = 'personal' | 'shared'
 export type FileKind = 'photo' | 'video' | 'other'
 export type TransferStatus = 'pending' | 'accepted' | 'declined'
 
+export type Lang = 'fr' | 'de'
+
 export interface Profile {
   id: string
   display_name: string
   avatar_url: string | null
   role: Role
+  lang: Lang
   created_at: string
 }
 

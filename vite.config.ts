@@ -12,14 +12,16 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
       manifest: {
-        name: 'NuageDuo',
-        short_name: 'NuageDuo',
+        name: 'Clouduo',
+        short_name: 'Clouduo',
         description: 'Notre cloud privé',
         lang: 'fr',
-        theme_color: '#0b0f14',
-        background_color: '#0b0f14',
+        theme_color: '#dbe4ff',
+        background_color: '#eef2ff',
         display: 'standalone',
-        orientation: 'portrait',
+        // 'any' et non 'portrait': une galerie photo se regarde aussi en
+        // paysage, et l'app tourne également sur tablette et bureau.
+        orientation: 'any',
         start_url: '/',
         scope: '/',
         icons: [

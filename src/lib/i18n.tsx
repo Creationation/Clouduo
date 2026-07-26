@@ -1,22 +1,61 @@
-import { createContext, useContext, useState, type ReactNode } from 'react'
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  type ReactNode,
+} from 'react'
+import { supabase } from './supabase'
+import { useAuth } from './auth'
+import type { Lang } from './types'
 
-export type Lang = 'fr' | 'de'
+export type { Lang }
 
 // Dictionnaire simple FR/DE. FR = référence.
 const dict = {
   fr: {
-    'app.name': 'NuageDuo',
+    'app.name': 'Clouduo',
     'nav.gallery': 'Galerie',
     'nav.shared': 'Commun',
     'nav.upload': 'Ajouter',
     'nav.inbox': 'Reçus',
     'nav.settings': 'Réglages',
+    'nav.menu': 'Menu',
+    'nav.docs': 'Documents',
+    'nav.sharedDocs': 'Documents communs',
+    'docs.title': 'Mes documents',
+    'docs.shared': 'Documents communs',
+    'docs.empty': 'Aucun document',
+    'sort.newest': 'Récents d’abord',
+    'sort.oldest': 'Anciens d’abord',
+    'select.count': 'sélectionné(s)',
+    'action.move': 'Déplacer',
+    'move.title': 'Déplacer vers',
+    'move.root': 'Racine',
     'login.title': 'Notre cloud privé',
     'login.email': 'Email',
+    'login.username': "Nom d'utilisateur",
     'login.password': 'Mot de passe',
     'login.submit': 'Se connecter',
-    'login.error': 'Email ou mot de passe incorrect',
+    'login.error': "Nom d'utilisateur ou mot de passe incorrect",
     'login.loading': 'Connexion...',
+    'login.tooMany': 'Trop de tentatives. Réessaie dans 15 minutes.',
+    'login.forgot': 'Mot de passe oublié ?',
+    'login.forgotHint':
+      "Entre ton nom d'utilisateur : un lien de réinitialisation part sur l'email du compte.",
+    'login.forgotSend': 'Envoyer le lien',
+    'login.forgotSent': 'Si le compte existe, le lien vient de partir.',
+    'login.backToLogin': 'Retour à la connexion',
+    'pwd.title': 'Mot de passe',
+    'pwd.change': 'Changer le mot de passe',
+    'pwd.newTitle': 'Nouveau mot de passe',
+    'pwd.new': 'Nouveau mot de passe',
+    'pwd.confirm': 'Confirmer le mot de passe',
+    'pwd.rule': 'Au moins 8 caractères.',
+    'pwd.tooShort': 'Le mot de passe doit faire au moins 8 caractères.',
+    'pwd.mismatch': 'Les deux mots de passe ne correspondent pas.',
+    'pwd.save': 'Enregistrer',
+    'pwd.changed': 'Mot de passe modifié',
     'gallery.mine': 'Mes fichiers',
     'gallery.empty': 'Aucun fichier pour le moment',
     'gallery.photos': 'Photos',
@@ -24,10 +63,20 @@ const dict = {
     'gallery.all': 'Tout',
     'shared.title': 'Commun',
     'shared.empty': 'Le Commun est vide',
+    'shared.media': 'Photos & vidéos',
+    'inbox.accepted': 'Ajouté à Mes fichiers',
     'upload.title': 'Ajouter des fichiers',
-    'upload.drop': 'Glisse tes fichiers ici ou clique pour choisir',
+    'upload.drop': 'Glisse tes fichiers ou tes dossiers ici',
+    'upload.dropHint': 'Les sous-dossiers sont parcourus, seules les photos et vidéos sont prises',
     'upload.mobile': 'Photos / Vidéos',
     'upload.camera': 'Caméra',
+    'upload.folder': 'Choisir un dossier',
+    'upload.scanning': 'Lecture du dossier...',
+    'upload.added': 'fichiers ajoutés',
+    'upload.none': 'Aucune photo ni vidéo trouvée',
+    'upload.dest': 'Destination',
+    'upload.note': 'Petit mot (optionnel)',
+    'upload.sendHint': 'Le fichier reste chez toi et part en attente chez',
     'upload.queue': "File d'attente",
     'upload.pause': 'Pause',
     'upload.resume': 'Reprendre',
@@ -56,10 +105,20 @@ const dict = {
     'settings.total': 'Total (stockage réel)',
     'settings.trash': 'Corbeille',
     'settings.lang': 'Langue',
+    'settings.theme': 'Apparence',
+    'theme.light': 'Clair',
+    'theme.dark': 'Sombre',
     'settings.logout': 'Se déconnecter',
     'settings.trashLink': 'Ouvrir la corbeille',
     'action.download': "Télécharger l'original",
     'action.rename': 'Renommer',
+    'action.edit': 'Renommer / changer la date',
+    'edit.title': 'Nom et date',
+    'edit.name': 'Nom du fichier',
+    'edit.date': 'Date du souvenir',
+    'edit.dateHint':
+      "Commande le classement dans la galerie. L'original n'est pas modifié.",
+    'edit.badDate': 'Date invalide',
     'action.delete': 'Supprimer',
     'action.moveToShared': 'Mettre dans le Commun',
     'action.recover': 'Récupérer',
@@ -74,18 +133,48 @@ const dict = {
     'common.loading': 'Chargement...',
   },
   de: {
-    'app.name': 'NuageDuo',
+    'app.name': 'Clouduo',
     'nav.gallery': 'Galerie',
     'nav.shared': 'Gemeinsam',
     'nav.upload': 'Hinzufügen',
     'nav.inbox': 'Empfang',
     'nav.settings': 'Einstellungen',
+    'nav.menu': 'Menü',
+    'nav.docs': 'Dokumente',
+    'nav.sharedDocs': 'Gemeinsame Dokumente',
+    'docs.title': 'Meine Dokumente',
+    'docs.shared': 'Gemeinsame Dokumente',
+    'docs.empty': 'Keine Dokumente',
+    'sort.newest': 'Neueste zuerst',
+    'sort.oldest': 'Älteste zuerst',
+    'select.count': 'ausgewählt',
+    'action.move': 'Verschieben',
+    'move.title': 'Verschieben nach',
+    'move.root': 'Hauptordner',
     'login.title': 'Unsere private Cloud',
     'login.email': 'E-Mail',
+    'login.username': 'Benutzername',
     'login.password': 'Passwort',
     'login.submit': 'Anmelden',
-    'login.error': 'E-Mail oder Passwort falsch',
+    'login.error': 'Benutzername oder Passwort falsch',
     'login.loading': 'Anmeldung...',
+    'login.tooMany': 'Zu viele Versuche. Bitte in 15 Minuten erneut versuchen.',
+    'login.forgot': 'Passwort vergessen?',
+    'login.forgotHint':
+      'Gib deinen Benutzernamen ein: Der Link geht an die E-Mail des Kontos.',
+    'login.forgotSend': 'Link senden',
+    'login.forgotSent': 'Falls das Konto existiert, wurde der Link gesendet.',
+    'login.backToLogin': 'Zurück zur Anmeldung',
+    'pwd.title': 'Passwort',
+    'pwd.change': 'Passwort ändern',
+    'pwd.newTitle': 'Neues Passwort',
+    'pwd.new': 'Neues Passwort',
+    'pwd.confirm': 'Passwort bestätigen',
+    'pwd.rule': 'Mindestens 8 Zeichen.',
+    'pwd.tooShort': 'Das Passwort muss mindestens 8 Zeichen haben.',
+    'pwd.mismatch': 'Die Passwörter stimmen nicht überein.',
+    'pwd.save': 'Speichern',
+    'pwd.changed': 'Passwort geändert',
     'gallery.mine': 'Meine Dateien',
     'gallery.empty': 'Noch keine Dateien',
     'gallery.photos': 'Fotos',
@@ -93,10 +182,20 @@ const dict = {
     'gallery.all': 'Alle',
     'shared.title': 'Gemeinsam',
     'shared.empty': 'Der gemeinsame Bereich ist leer',
+    'shared.media': 'Fotos & Videos',
+    'inbox.accepted': 'Zu Meine Dateien hinzugefügt',
     'upload.title': 'Dateien hinzufügen',
-    'upload.drop': 'Dateien hierher ziehen oder klicken',
+    'upload.drop': 'Dateien oder Ordner hierher ziehen',
+    'upload.dropHint': 'Unterordner werden durchsucht, nur Fotos und Videos werden übernommen',
     'upload.mobile': 'Fotos / Videos',
     'upload.camera': 'Kamera',
+    'upload.folder': 'Ordner wählen',
+    'upload.scanning': 'Ordner wird gelesen...',
+    'upload.added': 'Dateien hinzugefügt',
+    'upload.none': 'Keine Fotos oder Videos gefunden',
+    'upload.dest': 'Ziel',
+    'upload.note': 'Kurze Nachricht (optional)',
+    'upload.sendHint': 'Die Datei bleibt bei dir und wartet bei',
     'upload.queue': 'Warteschlange',
     'upload.pause': 'Pause',
     'upload.resume': 'Fortsetzen',
@@ -125,10 +224,20 @@ const dict = {
     'settings.total': 'Gesamt (realer Speicher)',
     'settings.trash': 'Papierkorb',
     'settings.lang': 'Sprache',
+    'settings.theme': 'Erscheinungsbild',
+    'theme.light': 'Hell',
+    'theme.dark': 'Dunkel',
     'settings.logout': 'Abmelden',
     'settings.trashLink': 'Papierkorb öffnen',
     'action.download': 'Original herunterladen',
     'action.rename': 'Umbenennen',
+    'action.edit': 'Umbenennen / Datum ändern',
+    'edit.title': 'Name und Datum',
+    'edit.name': 'Dateiname',
+    'edit.date': 'Datum der Erinnerung',
+    'edit.dateHint':
+      'Bestimmt die Sortierung in der Galerie. Das Original bleibt unverändert.',
+    'edit.badDate': 'Ungültiges Datum',
     'action.delete': 'Löschen',
     'action.moveToShared': 'In Gemeinsam legen',
     'action.recover': 'Übernehmen',
@@ -153,13 +262,31 @@ const I18nContext = createContext<{
 }>({ lang: 'fr', setLang: () => {}, t: (k) => k })
 
 export function I18nProvider({ children }: { children: ReactNode }) {
+  const { session, profile, refreshProfiles } = useAuth()
+  // Avant connexion: choix fait sur l'écran d'accueil, gardé localement.
   const [lang, setLangState] = useState<Lang>(
     () => (localStorage.getItem('lang') as Lang) || 'fr',
   )
-  const setLang = (l: Lang) => {
+
+  // Une fois connecté, la langue du COMPTE fait foi: on la retrouve sur
+  // n'importe quel appareil, quel que soit le navigateur utilisé.
+  useEffect(() => {
+    if (profile?.lang && profile.lang !== lang) {
+      setLangState(profile.lang)
+      localStorage.setItem('lang', profile.lang)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile?.lang])
+
+  const setLang = async (l: Lang) => {
     localStorage.setItem('lang', l)
     setLangState(l)
+    if (session) {
+      await supabase.from('profiles').update({ lang: l }).eq('id', session.user.id)
+      await refreshProfiles()
+    }
   }
+
   const t = (k: TKey) => dict[lang][k] ?? dict.fr[k] ?? k
   return (
     <I18nContext.Provider value={{ lang, setLang, t }}>

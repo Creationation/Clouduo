@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './lib/auth'
 import { I18nProvider } from './lib/i18n'
+import { ThemeProvider } from './lib/theme'
 import { QueueProvider } from './lib/queue'
 import { Spinner } from './components/ui'
 import Layout from './components/Layout'
@@ -10,12 +11,15 @@ import Login from './screens/Login'
 // Écrans chargés à la demande (bundle initial plus léger).
 const Gallery = lazy(() => import('./screens/Gallery'))
 const Shared = lazy(() => import('./screens/Shared'))
+const Docs = lazy(() => import('./screens/Docs'))
+const SharedDocs = lazy(() => import('./screens/SharedDocs'))
 const Upload = lazy(() => import('./screens/Upload'))
 const Inbox = lazy(() => import('./screens/Inbox'))
 const Settings = lazy(() => import('./screens/Settings'))
 const Trash = lazy(() => import('./screens/Trash'))
 const Backup = lazy(() => import('./screens/Backup'))
 const Viewer = lazy(() => import('./screens/Viewer'))
+const ResetPassword = lazy(() => import('./screens/ResetPassword'))
 
 function Loader() {
   return (
@@ -26,9 +30,16 @@ function Loader() {
 }
 
 function Gate() {
-  const { session, loading } = useAuth()
+  const { session, loading, recovery } = useAuth()
   if (loading) return <Loader />
   if (!session) return <Login />
+  // Lien de réinitialisation: nouveau mot de passe obligatoire avant d'entrer.
+  if (recovery)
+    return (
+      <Suspense fallback={<Loader />}>
+        <ResetPassword />
+      </Suspense>
+    )
   return (
     <QueueProvider>
       <Suspense fallback={<Loader />}>
@@ -44,6 +55,8 @@ function AppRoutes() {
       <Route element={<Layout />}>
         <Route path="/" element={<Gallery />} />
         <Route path="/shared" element={<Shared />} />
+        <Route path="/docs" element={<Docs />} />
+        <Route path="/shared/docs" element={<SharedDocs />} />
         <Route path="/upload" element={<Upload />} />
         <Route path="/inbox" element={<Inbox />} />
         <Route path="/settings" element={<Settings />} />
@@ -59,12 +72,15 @@ function AppRoutes() {
 
 export default function App() {
   return (
-    <I18nProvider>
+    // AuthProvider est au-dessus: I18nProvider lit la langue du profil.
+    <ThemeProvider>
       <AuthProvider>
-        <BrowserRouter>
-          <Gate />
-        </BrowserRouter>
+        <I18nProvider>
+          <BrowserRouter>
+            <Gate />
+          </BrowserRouter>
+        </I18nProvider>
       </AuthProvider>
-    </I18nProvider>
+    </ThemeProvider>
   )
 }

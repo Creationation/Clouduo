@@ -12,3 +12,7 @@ verify_jwt = true
 # purge-trash est appelée par le cron avec un secret d'en-tête, pas un JWT utilisateur.
 [functions.purge-trash]
 verify_jwt = false
+
+# auth-username est le point d'entrée AVANT connexion: pas de JWT possible.
+[functions.auth-username]
+verify_jwt = false

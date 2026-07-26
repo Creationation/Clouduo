@@ -71,6 +71,14 @@ export function db() {
 export async function putItem(item: QueueItem) {
   ;(await db()).put('queue', item)
 }
+// Ajout en masse (dossier de plusieurs milliers de fichiers): une seule
+// transaction au lieu d'une par fichier, sinon l'ajout prend des minutes.
+export async function putItems(items: QueueItem[]) {
+  const d = await db()
+  const tx = d.transaction('queue', 'readwrite')
+  for (const it of items) tx.store.put(it)
+  await tx.done
+}
 export async function deleteItem(id: string) {
   ;(await db()).delete('queue', id)
 }
