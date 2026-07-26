@@ -6,7 +6,12 @@ import {
   type ReactNode,
 } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import { supabase, invokePublic, isRecoveryLink } from './supabase'
+import {
+  supabase,
+  invokePublic,
+  isRecoveryLink,
+  recoveryTokens,
+} from './supabase'
 import type { Profile } from './types'
 
 interface AuthState {
@@ -44,16 +49,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session)
-      setLoading(false)
-    })
+    // L'abonnement doit être posé dans tous les cas, y compris pendant une
+    // réinitialisation: c'est lui qui suit les rafraîchissements de jeton.
     const { data: sub } = supabase.auth.onAuthStateChange((e, s) => {
       setSession(s)
-      // Lien de réinitialisation cliqué: la session est ouverte mais on doit
-      // exiger un nouveau mot de passe avant de laisser entrer.
       if (e === 'PASSWORD_RECOVERY') setRecovery(true)
     })
+
+    if (recoveryTokens) {
+      // Lien de réinitialisation: on ouvre la session à partir des jetons du
+      // fragment, sans dépendre de detectSessionInUrl.
+      supabase.auth
+        .setSession(recoveryTokens)
+        .then(({ data, error }) => {
+          // Jeton périmé ou déjà consommé: session nulle, Gate affiche
+          // l'explication au lieu d'un formulaire de connexion muet.
+          setSession(error ? null : (data.session ?? null))
+        })
+        .catch(() => setSession(null))
+        .finally(() => setLoading(false))
+    } else {
+      supabase.auth.getSession().then(({ data }) => {
+        setSession(data.session)
+        setLoading(false)
+      })
+    }
+
     return () => sub.subscription.unsubscribe()
   }, [])
 

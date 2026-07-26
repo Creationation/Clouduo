@@ -14,16 +14,32 @@ export const supabaseUrl = url
 export const supabaseAnonKey = anonKey
 
 /**
- * Le lien de réinitialisation revient avec `type=recovery` dans le fragment.
- * On le lit ICI, avant la création du client: `detectSessionInUrl` consomme
- * puis efface le fragment, et l'événement PASSWORD_RECOVERY peut partir avant
- * que React ait monté son écouteur. Se fier au seul événement fait manquer le
- * cas une fois sur deux, et l'utilisateur se retrouve simplement connecté
- * sans jamais voir l'écran de nouveau mot de passe.
+ * Le lien de réinitialisation revient avec les jetons dans le fragment.
+ *
+ * On le lit ICI, avant la création du client, et on ouvre la session
+ * nous-mêmes (voir auth.tsx). `detectSessionInUrl` est désactivé exprès:
+ * observé en production, il déclenchait bien son traitement (l'avertissement
+ * gotrue sur l'ancienneté de l'URL apparaissait) mais n'émettait jamais la
+ * requête de validation du jeton, ne stockait aucune session et laissait le
+ * fragment en place, sans la moindre erreur. L'utilisateur voyait alors un
+ * lien parfaitement valide traité comme expiré.
+ *
+ * setSession() est le chemin déjà utilisé par la connexion par mot de passe,
+ * donc éprouvé, et le comportement devient déterministe.
  */
-export const isRecoveryLink =
-  typeof window !== 'undefined' &&
-  window.location.hash.includes('type=recovery')
+function readRecoveryFromHash() {
+  if (typeof window === 'undefined') return null
+  const hash = window.location.hash
+  if (!hash.includes('type=recovery')) return null
+  const p = new URLSearchParams(hash.slice(1))
+  const access_token = p.get('access_token')
+  const refresh_token = p.get('refresh_token')
+  if (!access_token || !refresh_token) return null
+  return { access_token, refresh_token }
+}
+
+export const recoveryTokens = readRecoveryFromHash()
+export const isRecoveryLink = recoveryTokens !== null
 
 /** Appel d'une Edge Function SANS session (connexion, mot de passe oublié). */
 export async function invokePublic<T>(
@@ -49,7 +65,8 @@ export const supabase = createClient(url || 'http://localhost:54321', anonKey ||
   auth: {
     persistSession: true,
     autoRefreshToken: true,
-    detectSessionInUrl: true,
+    // Volontairement désactivé: on traite le fragment nous-mêmes, cf. plus haut.
+    detectSessionInUrl: false,
   },
 })
 
