@@ -63,6 +63,12 @@ export const IconMoon = ({ className, size }: P) => (
     <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z" />
   </svg>
 )
+export const IconCopy = ({ className, size }: P) => (
+  <svg {...base(size)} className={className}>
+    <rect x="9" y="9" width="12" height="12" rx="2" />
+    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+  </svg>
+)
 export const IconShared = ({ className, size }: P) => (
   <svg {...base(size)} className={className}>
     <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />

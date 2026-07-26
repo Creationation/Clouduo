@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './lib/auth'
 import { I18nProvider } from './lib/i18n'
 import { ThemeProvider } from './lib/theme'
+import { ToastProvider } from './lib/toast'
 import { QueueProvider } from './lib/queue'
 import { Spinner } from './components/ui'
 import Layout from './components/Layout'
@@ -20,6 +21,7 @@ const Trash = lazy(() => import('./screens/Trash'))
 const Backup = lazy(() => import('./screens/Backup'))
 const Viewer = lazy(() => import('./screens/Viewer'))
 const ResetPassword = lazy(() => import('./screens/ResetPassword'))
+const Duplicates = lazy(() => import('./screens/Duplicates'))
 
 function Loader() {
   return (
@@ -66,6 +68,7 @@ function AppRoutes() {
         <Route path="/settings" element={<Settings />} />
         <Route path="/trash" element={<Trash />} />
         <Route path="/backup" element={<Backup />} />
+        <Route path="/duplicates" element={<Duplicates />} />
       </Route>
       {/* Visionneuse plein écran (hors layout) */}
       <Route path="/view/:scope/:id" element={<Viewer />} />
@@ -78,6 +81,7 @@ export default function App() {
   return (
     // AuthProvider est au-dessus: I18nProvider lit la langue du profil.
     <ThemeProvider>
+      <ToastProvider>
       <AuthProvider>
         <I18nProvider>
           <BrowserRouter>
@@ -85,6 +89,7 @@ export default function App() {
           </BrowserRouter>
         </I18nProvider>
       </AuthProvider>
+      </ToastProvider>
     </ThemeProvider>
   )
 }

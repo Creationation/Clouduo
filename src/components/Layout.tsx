@@ -13,6 +13,7 @@ import {
   IconDoc,
   IconTrash,
   IconRestore,
+  IconCopy,
 } from './icons'
 import InstallPrompt from './InstallPrompt'
 
@@ -66,6 +67,7 @@ const places: { to: string; key: TKey; Icon: typeof IconGallery }[] = [
   { to: '/', key: 'nav.gallery', Icon: IconGallery },
   { to: '/docs', key: 'nav.docs', Icon: IconDoc },
   { to: '/backup', key: 'backup.title', Icon: IconRestore },
+  { to: '/duplicates', key: 'dup.title', Icon: IconCopy },
   { to: '/trash', key: 'trash.title', Icon: IconTrash },
 ]
 

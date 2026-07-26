@@ -12,6 +12,7 @@
   --color-accent: #3b6ef6;
   --color-accent-soft: #c9d9ff;
   --color-danger: #e0384a;
+  --color-warning: #b26a00;
   --color-success: #129a5c;
 }
 
@@ -27,6 +28,7 @@
   --color-accent: #3b6ef6;
   --color-accent-soft: #c9d9ff;
   --color-danger: #e0384a;
+  --color-warning: #b26a00;
   --color-success: #0e8f55;
 
   /* Composantes RVB: indispensables pour teinter du verre en gardant la
@@ -91,6 +93,7 @@
   --color-accent: #5b8cff;
   --color-accent-soft: #1e3a5f;
   --color-danger: #f2646f;
+  --color-warning: #fbbf24;
   --color-success: #34d399;
 
   --accent-rgb: 91 140 255;

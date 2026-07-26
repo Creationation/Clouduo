@@ -15,6 +15,7 @@ import {
   type QueueStatus,
 } from './db'
 import { detectKind, resolveMime } from './media'
+import { useToast } from './toast'
 import { processItem } from './uploader'
 import { invokeFunction } from './supabase'
 import type { Scope } from './types'
@@ -48,6 +49,7 @@ function uuid() {
 }
 
 export function QueueProvider({ children }: { children: ReactNode }) {
+  const { show: notify } = useToast()
   const itemsRef = useRef<QueueItem[]>([])
   const controllers = useRef<Map<string, AbortController>>(new Map())
   const running = useRef<Set<string>>(new Set())
@@ -96,7 +98,11 @@ export function QueueProvider({ children }: { children: ReactNode }) {
         // Abort volontaire: pause si demandée, sinon l'item a été retiré.
         if (pausedIds.current.has(item.id)) setStatus(item, 'paused')
       } else {
-        setStatus(item, 'error', e instanceof Error ? e.message : String(e))
+        const msg = e instanceof Error ? e.message : String(e)
+        setStatus(item, 'error', msg)
+        // Une erreur d'envoi restait invisible tant qu'on ne regardait pas la
+        // file: on la remonte à l'écran, quel que soit l'onglet affiché.
+        notify?.(`${item.name} — ${msg}`, 'error')
       }
     } finally {
       running.current.delete(item.id)

@@ -6,6 +6,8 @@ import { filesFromDataTransfer, filesFromInput } from '../lib/dropFiles'
 import type { Scope } from '../lib/types'
 import QueueList from '../components/QueueList'
 import { formatBytes } from '../components/ui'
+import { checkQuota } from '../lib/quota'
+import { useToast } from '../lib/toast'
 
 // personal / shared = où le fichier atterrit. send = il reste chez moi et
 // part en attente chez l'autre (transfert), sans passer par le Commun.
@@ -15,6 +17,7 @@ export default function Upload() {
   const { add } = useQueue()
   const { t } = useI18n()
   const { other } = useAuth()
+  const { show: toast } = useToast()
   const [dest, setDest] = useState<Dest>('personal')
   const [note, setNote] = useState('')
   const [dragOver, setDragOver] = useState(false)
@@ -34,6 +37,31 @@ export default function Upload() {
       setLastAdded({ n: 0, bytes: 0 })
       return
     }
+
+    // Contrôle du plafond AVANT de mettre en file: prévenir une fois au
+    // départ vaut mieux que découvrir le problème après des heures d'envoi.
+    const incoming = files.reduce((s, f) => s + f.size, 0)
+    try {
+      const q = await checkQuota(incoming)
+      if (q.full) {
+        toast(
+          `${t('quota.full')} ${formatBytes(q.used)} / ${formatBytes(q.quota)}`,
+          'error',
+          9000,
+        )
+        return
+      }
+      if (q.near) {
+        toast(
+          `${t('quota.near')} ${formatBytes(q.used + incoming)} / ${formatBytes(q.quota)}`,
+          'warning',
+          8000,
+        )
+      }
+    } catch {
+      /* stats indisponibles: on n'empêche pas d'envoyer pour autant */
+    }
+
     const scope: Scope = dest === 'shared' ? 'shared' : 'personal'
     await add(files, {
       scope,
