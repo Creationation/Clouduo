@@ -1,7 +1,7 @@
 // App bureau Clouduo: une fenêtre native sur l'app déployée.
 // Même principe que l'APK (wrapper sur l'URL), donc une seule version à
 // maintenir: un déploiement Vercel met à jour le bureau et le téléphone.
-const { app, BrowserWindow, shell, Menu } = require('electron')
+const { app, BrowserWindow, shell, Menu, session, globalShortcut } = require('electron')
 const path = require('node:path')
 
 const APP_URL = process.env.CLOUDUO_URL || 'https://clouduo-puce.vercel.app'
@@ -62,14 +62,46 @@ app.on('second-instance', () => {
   }
 })
 
-app.whenReady().then(() => {
+/**
+ * Le site est une PWA: son service worker précache le bundle et continue de
+ * servir l'ancienne version après un déploiement. Dans un wrapper sur URL ce
+ * cache n'apporte rien et fige l'app sur une version périmée — au point, le
+ * 2026-07-26, de laisser tourner un bundle dont la clé API avait été révoquée,
+ * ce qui rendait toute connexion impossible sans le moindre message utile.
+ *
+ * On le vide donc à chaque démarrage. Le stockage local n'est PAS touché:
+ * la session reste ouverte, on ne se reconnecte pas à chaque lancement.
+ */
+async function clearStaleShell() {
+  try {
+    await session.defaultSession.clearStorageData({
+      storages: ['serviceworkers', 'cachestorage'],
+    })
+  } catch {
+    /* au pire on démarre sur le cache existant */
+  }
+}
+
+app.whenReady().then(async () => {
   Menu.setApplicationMenu(null)
+  await clearStaleShell()
   createWindow()
+
+  // Rechargement forcé sous la main, si jamais l'app affichait du périmé.
+  globalShortcut.register('CommandOrControl+Shift+R', async () => {
+    await clearStaleShell()
+    if (win) win.webContents.reloadIgnoringCache()
+  })
+  globalShortcut.register('CommandOrControl+R', () => {
+    if (win) win.webContents.reload()
+  })
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
 })
+
+app.on('will-quit', () => globalShortcut.unregisterAll())
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
