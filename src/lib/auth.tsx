@@ -6,7 +6,7 @@ import {
   type ReactNode,
 } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import { supabase, invokePublic } from './supabase'
+import { supabase, invokePublic, isRecoveryLink } from './supabase'
 import type { Profile } from './types'
 
 interface AuthState {
@@ -35,7 +35,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [profiles, setProfiles] = useState<Profile[]>([])
   const [loading, setLoading] = useState(true)
-  const [recovery, setRecovery] = useState(false)
+  // État initial lu depuis l'URL, pas seulement depuis l'événement.
+  const [recovery, setRecovery] = useState(isRecoveryLink)
 
   const loadProfiles = async () => {
     const { data } = await supabase.from('profiles').select('*')
@@ -114,7 +115,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signOut,
         requestPasswordReset,
         updatePassword,
-        endRecovery: () => setRecovery(false),
+        endRecovery: () => {
+          setRecovery(false)
+          // Nettoyer le fragment: sans ça, un rafraîchissement de la page
+          // relancerait l'écran de nouveau mot de passe indéfiniment.
+          if (window.location.hash) {
+            window.history.replaceState(null, '', window.location.pathname)
+          }
+        },
         refreshProfiles: loadProfiles,
       }}
     >

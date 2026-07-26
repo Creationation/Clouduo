@@ -17,12 +17,27 @@ function escapeLike(s: string): string {
   return s.replace(/[\\%_]/g, '\\$&')
 }
 
-async function emailFor(username: string): Promise<string | null> {
+/**
+ * Résout ce que l'utilisateur a tapé vers l'email du compte.
+ * Accepte le nom d'utilisateur OU l'email: se souvenir duquel des deux on
+ * s'est servi à l'inscription est une charge inutile, et l'email reste
+ * l'identifiant naturel dans la tête des gens.
+ */
+async function emailFor(input: string): Promise<string | null> {
   const admin = createClient(URL, SERVICE)
+
+  if (input.includes('@')) {
+    const { data } = await admin.auth.admin.listUsers()
+    const found = data?.users.find(
+      (u) => u.email?.toLowerCase() === input.toLowerCase(),
+    )
+    return found?.email ?? null
+  }
+
   const { data: profile } = await admin
     .from('profiles')
     .select('id')
-    .ilike('username', escapeLike(username))
+    .ilike('username', escapeLike(input))
     .limit(1)
     .maybeSingle()
   if (!profile) return null
@@ -39,19 +54,23 @@ Deno.serve(async (req) => {
 
     if (action === 'login') {
       const admin = createClient(URL, SERVICE)
+      const email = await emailFor(name)
+
+      // Compteur d'échecs indexé sur l'email résolu: sans ça, username et
+      // email donneraient deux compteurs séparés pour le même compte, et
+      // doubleraient le nombre d'essais possibles.
+      const key = email ?? name
 
       // Toutes les tentatives arrivent ici avec l'IP de la Edge Function: la
-      // limitation par IP de Supabase ne protège plus rien, on compte donc
-      // les échecs nous-mêmes, par nom d'utilisateur.
+      // limitation par IP de Supabase ne protège donc plus rien.
       const { data: allowed } = await admin.rpc('login_allowed', {
-        p_username: name,
+        p_username: key,
       })
       if (allowed === false) return json({ error: 'too_many' }, 429)
 
-      const email = await emailFor(name)
       // Même réponse si le compte n'existe pas ou si le mot de passe est faux.
       if (!email) {
-        await admin.rpc('login_record', { p_username: name, p_success: false })
+        await admin.rpc('login_record', { p_username: key, p_success: false })
         return json({ error: 'invalid' }, 401)
       }
 
@@ -61,11 +80,11 @@ Deno.serve(async (req) => {
         password: String(password ?? ''),
       })
       if (error || !data.session) {
-        await admin.rpc('login_record', { p_username: name, p_success: false })
+        await admin.rpc('login_record', { p_username: key, p_success: false })
         return json({ error: 'invalid' }, 401)
       }
 
-      await admin.rpc('login_record', { p_username: name, p_success: true })
+      await admin.rpc('login_record', { p_username: key, p_success: true })
       return json({
         access_token: data.session.access_token,
         refresh_token: data.session.refresh_token,

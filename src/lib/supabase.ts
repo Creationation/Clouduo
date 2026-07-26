@@ -13,6 +13,18 @@ if (!url || !anonKey) {
 export const supabaseUrl = url
 export const supabaseAnonKey = anonKey
 
+/**
+ * Le lien de réinitialisation revient avec `type=recovery` dans le fragment.
+ * On le lit ICI, avant la création du client: `detectSessionInUrl` consomme
+ * puis efface le fragment, et l'événement PASSWORD_RECOVERY peut partir avant
+ * que React ait monté son écouteur. Se fier au seul événement fait manquer le
+ * cas une fois sur deux, et l'utilisateur se retrouve simplement connecté
+ * sans jamais voir l'écran de nouveau mot de passe.
+ */
+export const isRecoveryLink =
+  typeof window !== 'undefined' &&
+  window.location.hash.includes('type=recovery')
+
 /** Appel d'une Edge Function SANS session (connexion, mot de passe oublié). */
 export async function invokePublic<T>(
   name: string,

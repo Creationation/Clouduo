@@ -6,19 +6,28 @@
   "private": true,
   "scripts": {
     "start": "electron .",
+    "pack": "electron-packager . Clouduo --platform=win32 --arch=x64 --icon=build/icon.ico --out=dist --overwrite --app-version=1.0.0 --ignore=\"^/dist\"",
     "dist": "electron-builder --win",
     "dist:portable": "electron-builder --win portable"
   },
   "devDependencies": {
+    "@electron/packager": "^20.0.4",
     "electron": "^33.2.0",
-    "electron-builder": "^25.1.8"
+    "electron-builder": "^25.1.8",
+    "png-to-ico": "^3.0.2"
   },
   "build": {
     "appId": "com.creationation.clouduo",
     "productName": "Clouduo",
-    "files": ["main.js", "build/**"],
+    "files": [
+      "main.js",
+      "build/**"
+    ],
     "win": {
-      "target": ["nsis", "portable"],
+      "target": [
+        "nsis",
+        "portable"
+      ],
       "icon": "build/icon.png"
     },
     "nsis": {
