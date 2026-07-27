@@ -217,6 +217,45 @@ export function QueueProvider({ children }: { children: ReactNode }) {
     (i) => i.status !== 'done' && i.status !== 'dedup' && i.status !== 'error',
   ).length
 
+  // Sur Android, l'écran qui s'éteint suspend la WebView: l'envoi s'arrête et
+  // ne reprend qu'au réveil. Sur un gros fichier en 4G, ça donne l'impression
+  // que l'app traîne alors qu'elle est simplement gelée. On garde donc
+  // l'écran allumé tant qu'il reste quelque chose à envoyer, et pas une
+  // seconde de plus (la veille se rétablit dès la file vide).
+  useEffect(() => {
+    type Sentinel = { release: () => Promise<void> }
+    const wl = (
+      navigator as unknown as {
+        wakeLock?: { request: (t: 'screen') => Promise<Sentinel> }
+      }
+    ).wakeLock
+    if (!wl || activeCount === 0) return
+
+    let lock: Sentinel | null = null
+    let cancelled = false
+    const acquire = async () => {
+      try {
+        const s = await wl.request('screen')
+        if (cancelled) await s.release()
+        else lock = s
+      } catch {
+        /* refus possible si l'onglet n'est pas au premier plan */
+      }
+    }
+    acquire()
+    // Le verrou saute dès que la page passe en arrière-plan: on le reprend.
+    const onVisible = () => {
+      if (!document.hidden && !lock) acquire()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+
+    return () => {
+      cancelled = true
+      document.removeEventListener('visibilitychange', onVisible)
+      lock?.release().catch(() => {})
+    }
+  }, [activeCount])
+
   return (
     <QueueContext.Provider
       value={{

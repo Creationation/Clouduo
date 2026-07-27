@@ -28,6 +28,7 @@ import {
   IconMove,
   IconSend,
   IconShared,
+  IconTrash,
 } from './icons'
 import { EmptyState, Spinner, formatBytes } from './ui'
 
@@ -39,23 +40,37 @@ interface Crumb {
   name: string
 }
 
-// Regroupe les fichiers par mois (taken_at) pour l'affichage type galerie.
-function groupByMonth(files: FileRow[], locale: string) {
+/**
+ * Regroupement par JOUR et non par mois: c'est l'unité à laquelle on pense
+ * ses photos ("la sortie de dimanche"), et ça rend la sélection d'une journée
+ * entière possible en un geste. L'en-tête de chaque jour sert de case à
+ * cocher pour tout le groupe.
+ */
+function groupByDay(files: FileRow[], locale: string) {
   const map = new Map<string, FileRow[]>()
   for (const f of files) {
     const d = new Date(f.taken_at ?? f.created_at)
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
+      d.getDate(),
+    ).padStart(2, '0')}`
     if (!map.has(key)) map.set(key, [])
     map.get(key)!.push(f)
   }
+  const today = new Date().toDateString()
   return [...map].map(([key, fs]) => {
-    const [y, m] = key.split('-')
+    const [y, m, day] = key.split('-')
+    const date = new Date(Number(y), Number(m) - 1, Number(day))
+    const isToday = date.toDateString() === today
     return {
       key,
-      label: new Date(Number(y), Number(m) - 1).toLocaleDateString(locale, {
-        month: 'long',
-        year: 'numeric',
-      }),
+      label: isToday
+        ? date.toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long' })
+        : date.toLocaleDateString(locale, {
+            weekday: 'long',
+            day: 'numeric',
+            month: 'long',
+            year: date.getFullYear() === new Date().getFullYear() ? undefined : 'numeric',
+          }),
       files: fs,
     }
   })
@@ -121,7 +136,42 @@ export default function FilesBrowser({
     setSelection(new Set())
   }, [folderId, scope, mode, kind, asc])
 
-  const groups = useMemo(() => groupByMonth(files, locale), [files, locale])
+  const groups = useMemo(() => groupByDay(files, locale), [files, locale])
+
+  const allSelected = files.length > 0 && selection.size === files.length
+
+  const toggleAll = () =>
+    setSelection(allSelected ? new Set() : new Set(files.map((f) => f.id)))
+
+  // Cocher/décocher une journée entière depuis son en-tête.
+  const toggleDay = (dayFiles: FileRow[]) =>
+    setSelection((prev) => {
+      const next = new Set(prev)
+      const allIn = dayFiles.every((f) => next.has(f.id))
+      for (const f of dayFiles) {
+        if (allIn) next.delete(f.id)
+        else next.add(f.id)
+      }
+      return next
+    })
+
+  // Suppression d'une sélection: vers la corbeille, jamais directement
+  // détruite. La destruction définitive reste un geste séparé, depuis la
+  // corbeille, et elle est irréversible.
+  const trashSelection = async () => {
+    const ids = [...selection]
+    setSending(true)
+    try {
+      for (const id of ids) await trashFile(id)
+      toast(`${ids.length} · ${t('select.trashed')}`, 'success')
+      setSelection(new Set())
+      load()
+    } catch (e) {
+      toast(e instanceof Error ? e.message : String(e), 'error')
+    } finally {
+      setSending(false)
+    }
+  }
 
   const openFolder = (f: Folder) => setCrumbs([...crumbs, { id: f.id, name: f.name }])
   const goCrumb = (i: number) => setCrumbs(crumbs.slice(0, i + 1))
@@ -288,6 +338,14 @@ export default function FilesBrowser({
           >
             {asc ? t('sort.oldest') : t('sort.newest')}
           </button>
+          {files.length > 0 && (
+            <button
+              onClick={toggleAll}
+              className="rounded-lg bg-[var(--color-surface-2)] px-3 py-1.5 text-xs"
+            >
+              {allSelected ? t('select.none') : t('select.all')}
+            </button>
+          )}
         </div>
         <button
           onClick={onNewFolder}
@@ -330,9 +388,26 @@ export default function FilesBrowser({
           {/* Fichiers groupés par mois */}
           {groups.map((g) => (
             <section key={g.key} className="mb-5">
-              <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--color-muted)]">
+              {/* L'en-tête du jour est cliquable: un geste pour toute la
+                  journée, ce qui évite de cocher trente photos une à une. */}
+              <button
+                onClick={() => toggleDay(g.files)}
+                className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[var(--color-muted)] transition hover:text-[var(--color-text)]"
+              >
+                <span
+                  className={`flex h-4 w-4 items-center justify-center rounded-full border-2 transition ${
+                    g.files.every((f) => selection.has(f.id))
+                      ? 'border-[var(--color-accent)] bg-[var(--color-accent)] text-white'
+                      : 'border-[var(--color-border)] text-transparent'
+                  }`}
+                >
+                  <IconCheck size={10} />
+                </span>
                 {g.label}
-              </h2>
+                <span className="font-normal normal-case opacity-70">
+                  ({g.files.length})
+                </span>
+              </button>
 
               {isDocs ? (
                 <div className="flex flex-col gap-1.5">
@@ -411,6 +486,13 @@ export default function FilesBrowser({
                 className="flex items-center gap-1.5 rounded-xl bg-[var(--color-surface-2)] px-3 py-2 text-xs"
               >
                 <IconMove size={15} /> {t('action.move')}
+              </button>
+              <button
+                onClick={trashSelection}
+                disabled={sending}
+                className="flex items-center gap-1.5 rounded-xl bg-[var(--color-surface-2)] px-3 py-2 text-xs text-[var(--color-danger)] disabled:opacity-50"
+              >
+                <IconTrash size={15} /> {t('action.delete')}
               </button>
               <button
                 onClick={() => setSelection(new Set())}

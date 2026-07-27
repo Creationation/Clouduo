@@ -29,6 +29,10 @@ const dict = {
     'sort.newest': 'Récents d’abord',
     'sort.oldest': 'Anciens d’abord',
     'select.count': 'sélectionné(s)',
+    'select.all': 'Tout sélectionner',
+    'select.none': 'Tout désélectionner',
+    'select.trashed': 'mis à la corbeille',
+
     'action.move': 'Déplacer',
     'move.title': 'Déplacer vers',
     'move.root': 'Racine',
@@ -180,6 +184,10 @@ const dict = {
     'sort.newest': 'Neueste zuerst',
     'sort.oldest': 'Älteste zuerst',
     'select.count': 'ausgewählt',
+    'select.all': 'Alle auswählen',
+    'select.none': 'Auswahl aufheben',
+    'select.trashed': 'in den Papierkorb verschoben',
+
     'action.move': 'Verschieben',
     'move.title': 'Verschieben nach',
     'move.root': 'Hauptordner',
