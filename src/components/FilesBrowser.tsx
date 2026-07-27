@@ -20,6 +20,7 @@ import FileTile from './FileTile'
 import BottomSheet, { SheetButton } from './BottomSheet'
 import FileEditDialog from './FileEditDialog'
 import MoveDialog from './MoveDialog'
+import TextPromptDialog from './TextPromptDialog'
 import {
   IconFolder,
   IconChevron,
@@ -102,6 +103,7 @@ export default function FilesBrowser({
   const [moving, setMoving] = useState(false)
   const [sharing, setSharing] = useState(false)
   const [sending, setSending] = useState(false)
+  const [newFolder, setNewFolder] = useState(false)
 
   const folderId = crumbs[crumbs.length - 1].id
   const isDocs = mode === 'documents'
@@ -194,11 +196,13 @@ export default function FilesBrowser({
       return next
     })
 
-  const onNewFolder = async () => {
-    const name = window.prompt(t('action.newFolder'))
-    if (name?.trim()) {
-      await createFolder(name.trim(), scope, folderId)
+  const onNewFolder = async (name: string) => {
+    setNewFolder(false)
+    try {
+      await createFolder(name, scope, folderId)
       load()
+    } catch (e) {
+      toast(e instanceof Error ? e.message : String(e), 'error')
     }
   }
 
@@ -272,13 +276,27 @@ export default function FilesBrowser({
 
   return (
     <div className="safe-top mx-auto max-w-3xl p-4">
-      {/* Fil d'Ariane */}
-      <div className="mb-2 flex items-center gap-1 text-sm">
+      {/* Fil d'Ariane. Un vrai bouton retour apparaît dès qu'on est dans un
+          dossier: les chevrons du fil ne se lisent pas comme un retour, et
+          sur téléphone il n'y a pas de bouton précédent du navigateur. */}
+      <div className="mb-2 flex flex-wrap items-center gap-1 text-sm">
+        {crumbs.length > 1 && (
+          <button
+            onClick={() => goCrumb(crumbs.length - 2)}
+            aria-label={t('action.back')}
+            title={t('action.back')}
+            className="mr-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--color-surface-2)] transition active:scale-95"
+          >
+            <IconChevron size={16} />
+          </button>
+        )}
         <h1 className="font-semibold">{title}</h1>
         {crumbs.slice(1).map((c, i) => (
           <span key={c.id} className="flex items-center gap-1 text-[var(--color-muted)]">
             <IconChevron className="rotate-180" size={14} />
-            <button onClick={() => goCrumb(i + 1)}>{c.name}</button>
+            <button className="max-w-[9rem] truncate" onClick={() => goCrumb(i + 1)}>
+              {c.name}
+            </button>
           </span>
         ))}
       </div>
@@ -348,7 +366,7 @@ export default function FilesBrowser({
           )}
         </div>
         <button
-          onClick={onNewFolder}
+          onClick={() => setNewFolder(true)}
           className="flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-[var(--color-surface-2)] px-3 py-1.5 text-xs"
         >
           <IconFolder size={14} /> {t('action.newFolder')}
@@ -566,6 +584,16 @@ export default function FilesBrowser({
           {t('shared.moveCopyHint')}
         </p>
       </BottomSheet>
+
+      {newFolder && (
+        <TextPromptDialog
+          title={t('action.newFolder')}
+          placeholder={t('folder.name')}
+          confirmLabel={t('action.create')}
+          onCancel={() => setNewFolder(false)}
+          onConfirm={onNewFolder}
+        />
+      )}
 
       {moving && (
         <MoveDialog

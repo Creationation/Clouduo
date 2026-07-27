@@ -157,7 +157,7 @@ export default function Layout() {
       )}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden">
           {/* La clé de route relance l'animation d'entrée à chaque écran. */}
           <div key={loc.pathname} className="page-in">
             <Outlet />

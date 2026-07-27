@@ -4,6 +4,7 @@ import { listFolderTree, moveFiles, createFolder, type FolderNode } from '../lib
 import { useI18n } from '../lib/i18n'
 import { Button, Spinner } from './ui'
 import { IconFolder } from './icons'
+import TextPromptDialog from './TextPromptDialog'
 
 /**
  * Choix du dossier de destination pour un lot de fichiers.
@@ -26,6 +27,7 @@ export default function MoveDialog({
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [prompting, setPrompting] = useState(false)
 
   const load = () => {
     setLoading(true)
@@ -50,11 +52,14 @@ export default function MoveDialog({
     }
   }
 
-  const addFolder = async () => {
-    const name = window.prompt(t('action.newFolder'))
-    if (!name?.trim()) return
-    await createFolder(name.trim(), scope, null)
-    load()
+  const addFolder = async (name: string) => {
+    setPrompting(false)
+    try {
+      await createFolder(name, scope, null)
+      load()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    }
   }
 
   return (
@@ -105,7 +110,7 @@ export default function MoveDialog({
         {error && <p className="mt-2 text-xs text-[var(--color-danger)]">{error}</p>}
 
         <div className="mt-3 grid grid-cols-2 gap-2">
-          <Button variant="ghost" onClick={addFolder} disabled={busy}>
+          <Button variant="ghost" onClick={() => setPrompting(true)} disabled={busy}>
             {t('action.newFolder')}
           </Button>
           <Button variant="ghost" onClick={onClose} disabled={busy}>
@@ -113,6 +118,16 @@ export default function MoveDialog({
           </Button>
         </div>
       </div>
+
+      {prompting && (
+        <TextPromptDialog
+          title={t('action.newFolder')}
+          placeholder={t('folder.name')}
+          confirmLabel={t('action.create')}
+          onCancel={() => setPrompting(false)}
+          onConfirm={addFolder}
+        />
+      )}
     </div>
   )
 }

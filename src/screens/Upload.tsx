@@ -136,12 +136,15 @@ export default function Upload() {
 
       {/* Destination: perso, Commun, ou envoi direct à l'autre */}
       <div className="mb-1 text-xs text-[var(--color-muted)]">{t('upload.dest')}</div>
-      <div className="mb-3 flex gap-1 overflow-x-auto rounded-2xl bg-[var(--color-surface)] p-1">
+      {/* Passage à la ligne, jamais de défilement horizontal: sur téléphone,
+          un onglet qui dépasse doit descendre dessous, pas obliger à faire
+          glisser du doigt pour découvrir qu'il existe. */}
+      <div className="mb-3 flex flex-wrap gap-1 rounded-2xl bg-[var(--color-surface)] p-1">
         {destButtons.map((d) => (
           <button
             key={d.key}
             onClick={() => setDest(d.key)}
-            className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 text-sm ${
+            className={`flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 text-sm ${
               dest === d.key ? 'glass-accent' : 'text-[var(--color-muted)]'
             }`}
           >
