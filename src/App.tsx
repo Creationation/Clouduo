@@ -7,6 +7,7 @@ import { ToastProvider } from './lib/toast'
 import { QueueProvider } from './lib/queue'
 import { Spinner } from './components/ui'
 import Layout from './components/Layout'
+import ErrorBoundary from './components/ErrorBoundary'
 import Login from './screens/Login'
 
 // Écrans chargés à la demande (bundle initial plus léger).
@@ -80,7 +81,8 @@ function AppRoutes() {
 export default function App() {
   return (
     // AuthProvider est au-dessus: I18nProvider lit la langue du profil.
-    <ThemeProvider>
+    <ErrorBoundary>
+      <ThemeProvider>
       <ToastProvider>
       <AuthProvider>
         <I18nProvider>
@@ -90,6 +92,7 @@ export default function App() {
         </I18nProvider>
       </AuthProvider>
       </ToastProvider>
-    </ThemeProvider>
+      </ThemeProvider>
+    </ErrorBoundary>
   )
 }

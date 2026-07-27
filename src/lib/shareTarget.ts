@@ -7,6 +7,8 @@
  * sélection: aucun chemin d'upload parallèle à maintenir.
  */
 
+import { registerPlugin } from '@capacitor/core'
+
 export interface SharedFileMeta {
   id: string
   name: string
@@ -34,13 +36,31 @@ interface ShareTargetPlugin {
 
 interface CapacitorGlobal {
   isNativePlatform?: () => boolean
-  Plugins?: { ShareTarget?: ShareTargetPlugin }
 }
 
+let cached: ShareTargetPlugin | null | undefined
+
+/**
+ * Il FAUT passer par registerPlugin: `Capacitor.Plugins.X` est l'ancienne
+ * voie et ne fournit pas toujours addListener. Appeler une méthode absente
+ * lève une exception dans un useEffect, React démonte alors tout l'arbre et
+ * l'écran devient entièrement blanc — c'est exactement ce qui est arrivé sur
+ * le téléphone le 2026-07-27. D'où aussi le try/catch: aucun problème de
+ * plugin ne doit pouvoir emporter l'interface.
+ */
 function plugin(): ShareTargetPlugin | null {
-  const cap = (window as unknown as { Capacitor?: CapacitorGlobal }).Capacitor
-  if (!cap?.isNativePlatform?.()) return null
-  return cap.Plugins?.ShareTarget ?? null
+  if (cached !== undefined) return cached
+  try {
+    const cap = (window as unknown as { Capacitor?: CapacitorGlobal }).Capacitor
+    if (!cap?.isNativePlatform?.()) {
+      cached = null
+      return null
+    }
+    cached = registerPlugin<ShareTargetPlugin>('ShareTarget')
+  } catch {
+    cached = null
+  }
+  return cached
 }
 
 export const isNativeShareAvailable = () => plugin() !== null
@@ -87,10 +107,10 @@ export async function fetchSharedFile(
 /** Fichiers déjà en attente au démarrage (partage ayant réveillé l'app). */
 export async function pendingShared(): Promise<SharedFileMeta[]> {
   const p = plugin()
-  if (!p) return []
+  if (!p || typeof p.getPending !== 'function') return []
   try {
-    const { files } = await p.getPending()
-    return files ?? []
+    const res = await p.getPending()
+    return res?.files ?? []
   } catch {
     return []
   }
@@ -101,12 +121,22 @@ export function onShared(
   cb: (files: SharedFileMeta[]) => void,
 ): () => void {
   const p = plugin()
-  if (!p) return () => {}
+  if (!p || typeof p.addListener !== 'function') return () => {}
   let remove: (() => Promise<void>) | null = null
-  p.addListener('shareReceived', (d) => cb(d.files ?? [])).then((h) => {
-    remove = h.remove
-  })
+  try {
+    p.addListener('shareReceived', (d) => cb(d?.files ?? []))
+      .then((h) => {
+        remove = h?.remove ?? null
+      })
+      .catch(() => {})
+  } catch {
+    return () => {}
+  }
   return () => {
-    remove?.()
+    try {
+      remove?.()
+    } catch {
+      /* le plugin peut avoir disparu au démontage */
+    }
   }
 }
