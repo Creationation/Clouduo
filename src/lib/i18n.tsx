@@ -170,6 +170,7 @@ const dict = {
     'common.file': 'fichier',
     'common.files': 'fichiers',
     'common.loading': 'Chargement...',
+    'common.loadFailed': 'Chargement impossible',
   },
   de: {
     'app.name': 'Clouduo',
@@ -328,6 +329,7 @@ const dict = {
     'common.file': 'Datei',
     'common.files': 'Dateien',
     'common.loading': 'Laden...',
+    'common.loadFailed': 'Laden fehlgeschlagen',
   },
 } as const
 

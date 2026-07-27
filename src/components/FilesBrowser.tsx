@@ -31,7 +31,7 @@ import {
   IconShared,
   IconTrash,
 } from './icons'
-import { EmptyState, Spinner, formatBytes } from './ui'
+import { Button, EmptyState, Spinner, formatBytes } from './ui'
 
 // media = galerie photos/vidéos, documents = tout le reste (kind 'other').
 export type BrowserMode = 'media' | 'documents'
@@ -104,6 +104,7 @@ export default function FilesBrowser({
   const [sharing, setSharing] = useState(false)
   const [sending, setSending] = useState(false)
   const [newFolder, setNewFolder] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
 
   const folderId = crumbs[crumbs.length - 1].id
   const isDocs = mode === 'documents'
@@ -114,19 +115,34 @@ export default function FilesBrowser({
     [isDocs, kind],
   )
 
+  /**
+   * Sans try/finally, une simple coupure réseau laissait `loading` à true
+   * pour toujours: l'utilisateur restait devant un rond qui tourne, sans
+   * message ni moyen de réessayer. Constaté en production, une requête vers
+   * Supabase peut échouer en 503 sans prévenir.
+   */
   const load = useCallback(async () => {
     setLoading(true)
-    const [fl, fi] = await Promise.all([
-      listFolders(scope, folderId),
-      listFiles({ scope, folderId, kinds, asc }),
-    ])
-    setFolders(fl)
-    setFiles(fi)
-    if (!isDocs) setViewerList(fi)
-    setLoading(false)
-    const keys = fi.map((f) => f.thumb_key).filter(Boolean) as string[]
-    if (keys.length) signBatch(keys).then(setThumbs)
-    else setThumbs({})
+    setLoadError(null)
+    try {
+      const [fl, fi] = await Promise.all([
+        listFolders(scope, folderId),
+        listFiles({ scope, folderId, kinds, asc }),
+      ])
+      setFolders(fl)
+      setFiles(fi)
+      if (!isDocs) setViewerList(fi)
+
+      // Les miniatures sont un confort: leur échec ne doit pas empêcher la
+      // galerie de s'afficher, on retombe sur les vignettes de repli.
+      const keys = fi.map((f) => f.thumb_key).filter(Boolean) as string[]
+      if (keys.length) signBatch(keys).then(setThumbs).catch(() => setThumbs({}))
+      else setThumbs({})
+    } catch (e) {
+      setLoadError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setLoading(false)
+    }
   }, [scope, folderId, kinds, asc, isDocs])
 
   useEffect(() => {
@@ -376,6 +392,16 @@ export default function FilesBrowser({
       {loading ? (
         <div className="flex justify-center py-16 text-[var(--color-muted)]">
           <Spinner />
+        </div>
+      ) : loadError ? (
+        <div className="glass glass-menu mx-auto mt-6 max-w-sm rounded-2xl p-4 text-center">
+          <p className="mb-1 text-sm font-semibold">{t('common.loadFailed')}</p>
+          <p className="mb-3 break-words text-xs text-[var(--color-muted)]">
+            {loadError}
+          </p>
+          <Button onClick={load} className="w-full">
+            {t('upload.retry')}
+          </Button>
         </div>
       ) : folders.length === 0 && files.length === 0 ? (
         <EmptyState>

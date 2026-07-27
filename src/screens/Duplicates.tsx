@@ -33,10 +33,16 @@ export default function Duplicates() {
 
   const load = useCallback(async () => {
     setLoading(true)
-    const { data, error } = await supabase.rpc('find_duplicate_groups')
-    if (error) toast(error.message, 'error')
-    setGroups((data as Group[]) ?? [])
-    setLoading(false)
+    try {
+      const { data, error } = await supabase.rpc('find_duplicate_groups')
+      if (error) throw error
+      setGroups((data as Group[]) ?? [])
+    } catch (e) {
+      toast(e instanceof Error ? e.message : String(e), 'error')
+      setGroups([])
+    } finally {
+      setLoading(false)
+    }
   }, [toast])
 
   useEffect(() => {

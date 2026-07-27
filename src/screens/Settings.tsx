@@ -43,9 +43,20 @@ export default function Settings() {
   const { t, lang, setLang } = useI18n()
   const { theme, setTheme } = useTheme()
   const [stats, setStats] = useState<Stats | null>(null)
+  const [statsFailed, setStatsFailed] = useState(false)
 
   useEffect(() => {
-    supabase.rpc('get_storage_stats').then(({ data }) => setStats(data as Stats))
+    // Les statistiques sont secondaires: leur échec ne doit pas empêcher
+    // d'accéder à la langue, au thème ou au mot de passe.
+    ;(async () => {
+      try {
+        const { data, error } = await supabase.rpc('get_storage_stats')
+        if (error) throw error
+        setStats(data as Stats)
+      } catch {
+        setStatsFailed(true)
+      }
+    })()
   }, [])
 
   return (
@@ -61,7 +72,11 @@ export default function Settings() {
       {/* Stockage */}
       <section className="glass mb-5 rounded-2xl p-4">
         <h2 className="mb-1 text-sm font-semibold">{t('settings.storage')}</h2>
-        {!stats ? (
+        {statsFailed ? (
+          <p className="py-4 text-center text-sm text-[var(--color-muted)]">
+            {t('common.loadFailed')}
+          </p>
+        ) : !stats ? (
           <div className="py-6 text-center text-[var(--color-muted)]">
             <Spinner />
           </div>

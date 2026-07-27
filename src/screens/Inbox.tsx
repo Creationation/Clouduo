@@ -17,13 +17,24 @@ export default function Inbox() {
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState<string | null>(null)
   const [accepted, setAccepted] = useState(0)
+  const [loadError, setLoadError] = useState<string | null>(null)
 
   const load = async () => {
-    const rows = await listInbox()
-    setItems(rows)
-    setLoading(false)
-    const keys = rows.map((r) => r.file?.thumb_key).filter(Boolean) as string[]
-    if (keys.length) signBatch(keys).then((m) => setThumbs((p) => ({ ...p, ...m })))
+    setLoading(true)
+    setLoadError(null)
+    try {
+      const rows = await listInbox()
+      setItems(rows)
+      const keys = rows.map((r) => r.file?.thumb_key).filter(Boolean) as string[]
+      if (keys.length)
+        signBatch(keys)
+          .then((m) => setThumbs((p) => ({ ...p, ...m })))
+          .catch(() => {})
+    } catch (e) {
+      setLoadError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => {
@@ -75,6 +86,16 @@ export default function Inbox() {
       {loading ? (
         <div className="flex justify-center py-16 text-[var(--color-muted)]">
           <Spinner />
+        </div>
+      ) : loadError ? (
+        <div className="glass glass-menu mx-auto mt-6 max-w-sm rounded-2xl p-4 text-center">
+          <p className="mb-1 text-sm font-semibold">{t('common.loadFailed')}</p>
+          <p className="mb-3 break-words text-xs text-[var(--color-muted)]">
+            {loadError}
+          </p>
+          <Button onClick={load} className="w-full">
+            {t('upload.retry')}
+          </Button>
         </div>
       ) : items.length === 0 ? (
         <EmptyState>{t('inbox.empty')}</EmptyState>
