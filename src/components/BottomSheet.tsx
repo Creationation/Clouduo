@@ -18,7 +18,7 @@ export default function BottomSheet({
       onClick={onClose}
     >
       <div
-        className="glass safe-bottom w-full max-w-md rounded-t-2xl p-2"
+        className="glass glass-menu safe-bottom w-full max-w-md rounded-t-3xl p-2"
         onClick={(e) => e.stopPropagation()}
       >
         {title && (

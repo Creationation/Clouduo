@@ -110,7 +110,7 @@ export default function Settings() {
             <button
               key={code}
               onClick={() => setLang(code)}
-              className={`flex items-center gap-2 rounded-md px-4 py-1.5 text-sm ${
+              className={`flex items-center gap-2 rounded-full px-4 py-1.5 text-sm ${
                 lang === code ? 'glass-accent' : 'text-[var(--color-muted)]'
               }`}
             >
@@ -135,7 +135,7 @@ export default function Settings() {
             <button
               key={key}
               onClick={() => setTheme(key)}
-              className={`flex items-center gap-2 rounded-md px-4 py-1.5 text-sm transition ${
+              className={`flex items-center gap-2 rounded-full px-4 py-1.5 text-sm transition ${
                 theme === key
                   ? 'glass-accent'
                   : 'text-[var(--color-muted)]'

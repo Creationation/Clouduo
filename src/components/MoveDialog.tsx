@@ -63,7 +63,7 @@ export default function MoveDialog({
       onClick={onClose}
     >
       <div
-        className="glass flex max-h-[70vh] w-full max-w-sm flex-col rounded-2xl p-4"
+        className="glass glass-menu flex max-h-[70vh] w-full max-w-sm flex-col rounded-3xl p-4"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="mb-1 text-base font-semibold">{t('move.title')}</h2>

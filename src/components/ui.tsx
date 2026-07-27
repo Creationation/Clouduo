@@ -25,7 +25,7 @@ export function Button({
   }[variant]
   return (
     <button
-      className={`flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-medium transition disabled:opacity-50 ${styles} ${className}`}
+      className={`flex items-center justify-center gap-2 whitespace-nowrap rounded-full px-4 py-2.5 text-sm font-medium transition disabled:opacity-50 ${styles} ${className}`}
       {...props}
     >
       {children}

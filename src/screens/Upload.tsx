@@ -6,6 +6,7 @@ import { filesFromDataTransfer, filesFromInput } from '../lib/dropFiles'
 import type { Scope } from '../lib/types'
 import QueueList from '../components/QueueList'
 import Logo from '../components/Logo'
+import { IconSend } from '../components/icons'
 import { Button, Spinner, formatBytes } from '../components/ui'
 import { checkQuota } from '../lib/quota'
 import { useToast } from '../lib/toast'
@@ -121,11 +122,13 @@ export default function Upload() {
     }
   }
 
-  const destButtons: { key: Dest; label: string }[] = [
+  const destButtons: { key: Dest; label: string; icon?: boolean }[] = [
     { key: 'personal', label: t('gallery.mine') },
     { key: 'shared', label: t('shared.title') },
   ]
-  if (other) destButtons.push({ key: 'send', label: `${t('action.send')} ${other.display_name}` })
+  // Le prénom suffit, l'icône dit "envoyer": le libellé complet faisait
+  // déborder le sélecteur sur un écran de téléphone.
+  if (other) destButtons.push({ key: 'send', label: other.display_name, icon: true })
 
   return (
     <div className="safe-top mx-auto max-w-2xl p-4">
@@ -133,17 +136,16 @@ export default function Upload() {
 
       {/* Destination: perso, Commun, ou envoi direct à l'autre */}
       <div className="mb-1 text-xs text-[var(--color-muted)]">{t('upload.dest')}</div>
-      <div className="mb-3 flex flex-wrap gap-1 rounded-xl bg-[var(--color-surface)] p-1">
+      <div className="mb-3 flex gap-1 overflow-x-auto rounded-2xl bg-[var(--color-surface)] p-1">
         {destButtons.map((d) => (
           <button
             key={d.key}
             onClick={() => setDest(d.key)}
-            className={`rounded-lg px-4 py-2 text-sm ${
-              dest === d.key
-                ? 'glass-accent'
-                : 'text-[var(--color-muted)]'
+            className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 text-sm ${
+              dest === d.key ? 'glass-accent' : 'text-[var(--color-muted)]'
             }`}
           >
+            {d.icon && <IconSend size={14} />}
             {d.label}
           </button>
         ))}

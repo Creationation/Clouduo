@@ -312,12 +312,12 @@ export default function FilesBrowser({
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           {!isDocs && (
-            <div className="inline-flex rounded-lg bg-[var(--color-surface)] p-1 text-xs">
+            <div className="inline-flex shrink-0 rounded-full bg-[var(--color-surface)] p-1 text-xs">
               {(['all', 'photo', 'video'] as KindFilter[]).map((k) => (
                 <button
                   key={k}
                   onClick={() => setKind(k)}
-                  className={`rounded-md px-3 py-1.5 ${
+                  className={`whitespace-nowrap rounded-full px-3 py-1.5 ${
                     kind === k
                       ? 'glass-accent'
                       : 'text-[var(--color-muted)]'
@@ -334,14 +334,14 @@ export default function FilesBrowser({
           )}
           <button
             onClick={() => setAsc((v) => !v)}
-            className="rounded-lg bg-[var(--color-surface-2)] px-3 py-1.5 text-xs"
+            className="shrink-0 whitespace-nowrap rounded-full bg-[var(--color-surface-2)] px-3 py-1.5 text-xs"
           >
             {asc ? t('sort.oldest') : t('sort.newest')}
           </button>
           {files.length > 0 && (
             <button
               onClick={toggleAll}
-              className="rounded-lg bg-[var(--color-surface-2)] px-3 py-1.5 text-xs"
+              className="shrink-0 whitespace-nowrap rounded-full bg-[var(--color-surface-2)] px-3 py-1.5 text-xs"
             >
               {allSelected ? t('select.none') : t('select.all')}
             </button>
@@ -349,7 +349,7 @@ export default function FilesBrowser({
         </div>
         <button
           onClick={onNewFolder}
-          className="flex items-center gap-1 rounded-lg bg-[var(--color-surface-2)] px-3 py-1.5 text-xs"
+          className="flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-[var(--color-surface-2)] px-3 py-1.5 text-xs"
         >
           <IconFolder size={14} /> {t('action.newFolder')}
         </button>
@@ -455,19 +455,24 @@ export default function FilesBrowser({
       {/* Barre d'actions: apparaît dès qu'un fichier est sélectionné */}
       {selection.size > 0 && (
         <div className="sticky bottom-2 z-30 mt-4">
-          <div className="glass mx-auto flex max-w-md items-center gap-2 rounded-2xl p-2">
-            <span className="pl-2 text-xs text-[var(--color-muted)]">
+          {/* Cinq actions ne tiennent pas sur une ligne de téléphone: la barre
+              passe donc à la ligne au lieu de déborder, le compteur a sa
+              propre ligne, et chaque libellé est insécable pour qu'aucun
+              bouton ne se coupe en deux. */}
+          <div className="glass glass-menu mx-auto max-w-md rounded-2xl p-2">
+            <div className="mb-1.5 px-1 text-[11px] text-[var(--color-muted)]">
               {selection.size} {t('select.count')}
-            </span>
-            <div className="ml-auto flex items-center gap-1.5">
+            </div>
+            <div className="flex flex-wrap items-center justify-end gap-1.5">
               {other && (
                 <button
                   onClick={sendSelection}
                   disabled={sending}
-                  className="glass-accent flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-medium disabled:opacity-50"
+                  className="glass-accent flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-medium disabled:opacity-50"
+                  title={`${t('action.send')} ${other.display_name}`}
                 >
-                  {sending ? <Spinner className="h-4 w-4" /> : <IconSend size={15} />}
-                  {t('action.send')} {other.display_name}
+                  {sending ? <Spinner className="h-3.5 w-3.5" /> : <IconSend size={14} />}
+                  {other.display_name}
                 </button>
               )}
               {/* Le Commun: déplacer (la ligne quitte le perso) ou copier
@@ -476,27 +481,28 @@ export default function FilesBrowser({
               {scope === 'personal' && (
                 <button
                   onClick={() => setSharing(true)}
-                  className="flex items-center gap-1.5 rounded-xl bg-[var(--color-surface-2)] px-3 py-2 text-xs"
+                  className="flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-[var(--color-surface-2)] px-3 py-1.5 text-xs"
                 >
-                  <IconShared size={15} /> {t('shared.title')}
+                  <IconShared size={14} /> {t('shared.title')}
                 </button>
               )}
               <button
                 onClick={() => setMoving(true)}
-                className="flex items-center gap-1.5 rounded-xl bg-[var(--color-surface-2)] px-3 py-2 text-xs"
+                className="flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-[var(--color-surface-2)] px-3 py-1.5 text-xs"
               >
-                <IconMove size={15} /> {t('action.move')}
+                <IconMove size={14} /> {t('action.move')}
               </button>
               <button
                 onClick={trashSelection}
                 disabled={sending}
-                className="flex items-center gap-1.5 rounded-xl bg-[var(--color-surface-2)] px-3 py-2 text-xs text-[var(--color-danger)] disabled:opacity-50"
+                className="flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-[var(--color-surface-2)] px-3 py-1.5 text-xs text-[var(--color-danger)] disabled:opacity-50"
               >
-                <IconTrash size={15} /> {t('action.delete')}
+                <IconTrash size={14} /> {t('action.delete')}
               </button>
               <button
                 onClick={() => setSelection(new Set())}
-                className="rounded-xl px-2 py-2 text-xs text-[var(--color-muted)]"
+                aria-label={t('select.none')}
+                className="shrink-0 rounded-full px-2.5 py-1.5 text-xs text-[var(--color-muted)]"
               >
                 ✕
               </button>

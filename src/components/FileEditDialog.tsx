@@ -49,7 +49,7 @@ export default function FileEditDialog({
       onClick={onClose}
     >
       <div
-        className="glass w-full max-w-sm rounded-2xl p-4"
+        className="glass glass-menu w-full max-w-sm rounded-3xl p-4"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="mb-4 text-base font-semibold">{t('edit.title')}</h2>

@@ -54,7 +54,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           <div
             key={t.id}
             role="status"
-            className={`page-in glass pointer-events-auto w-full max-w-sm rounded-2xl px-4 py-3 text-sm shadow-lg ${
+            className={`page-in glass glass-menu pointer-events-auto w-full max-w-sm rounded-2xl px-4 py-3 text-sm shadow-lg ${
               t.kind === 'error'
                 ? 'text-[var(--color-danger)]'
                 : t.kind === 'success'
