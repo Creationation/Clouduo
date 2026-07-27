@@ -1,7 +1,26 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="112" fill="#0b0f14"/>
-  <path d="M356 300a56 56 0 0 0-10-111 92 92 0 0 0-177 25 68 68 0 0 0 9 135h172a56 56 0 0 0 6-49z"
-        fill="none" stroke="#3b82f6" stroke-width="26" stroke-linejoin="round"/>
-  <circle cx="212" cy="250" r="15" fill="#3b82f6"/>
-  <circle cx="300" cy="250" r="15" fill="#3b82f6"/>
+  <!-- Même identité que la tuile de l'écran de connexion: carré arrondi bleu
+       avec reflet de verre, nuage blanc. Le nuage est PLEIN et non détouré:
+       à la taille d'une icône de téléphone, un contour fin se referme et
+       devient illisible. -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#7aa3ff"/>
+      <stop offset="55%" stop-color="#3b6ef6"/>
+      <stop offset="100%" stop-color="#2f5ae0"/>
+    </linearGradient>
+    <linearGradient id="sheen" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.45"/>
+      <stop offset="45%" stop-color="#ffffff" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <rect width="512" height="512" rx="112" fill="url(#sheen)"/>
+
+  <path d="M352 356H168a70 70 0 0 1-10-139 100 100 0 0 1 188-26 62 62 0 0 1 6 165z"
+        fill="#ffffff"/>
+  <circle cx="214" cy="272" r="14" fill="#3b6ef6" opacity="0.5"/>
+  <circle cx="298" cy="272" r="14" fill="#3b6ef6" opacity="0.5"/>
 </svg>
