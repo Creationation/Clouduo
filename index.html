@@ -2,8 +2,13 @@
 <html lang="fr">
   <head>
     <meta charset="UTF-8" />
+    <!-- Le SVG d'abord (net à toute taille), l'ICO en repli: certains vieux
+         navigateurs et des agrégateurs vont chercher /favicon.ico sans même
+         lire le HTML. -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" sizes="any" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="mask-icon" href="/favicon.svg" color="#3b6ef6" />
     <meta
       name="viewport"
       content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1"

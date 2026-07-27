@@ -4,6 +4,7 @@ import { useI18n } from '../lib/i18n'
 import type { Lang } from '../lib/types'
 import { Button, Spinner } from '../components/ui'
 import PasswordInput from '../components/PasswordInput'
+import Logo from '../components/Logo'
 import { FlagFR, FlagAT } from '../components/Flags'
 
 const LANGS: { code: Lang; label: string; Flag: typeof FlagFR }[] = [
@@ -48,9 +49,7 @@ export default function Login({
     <div className="safe-top flex min-h-full flex-col items-center justify-center p-6">
       <div className="glass w-full max-w-sm rounded-3xl p-6">
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center glass-accent rounded-2xl text-3xl">
-            ☁️
-          </div>
+          <Logo size={64} className="mx-auto mb-4 rounded-2xl shadow-lg" />
           <h1 className="text-2xl font-semibold">{t('app.name')}</h1>
           <p className="mt-1 text-sm text-[var(--color-muted)]">
             {t('login.title')}

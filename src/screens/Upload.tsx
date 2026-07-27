@@ -5,6 +5,7 @@ import { useAuth } from '../lib/auth'
 import { filesFromDataTransfer, filesFromInput } from '../lib/dropFiles'
 import type { Scope } from '../lib/types'
 import QueueList from '../components/QueueList'
+import Logo from '../components/Logo'
 import { Button, Spinner, formatBytes } from '../components/ui'
 import { checkQuota } from '../lib/quota'
 import { useToast } from '../lib/toast'
@@ -213,7 +214,7 @@ export default function Upload() {
             : 'border-[var(--color-border)] bg-[var(--color-surface)]'
         }`}
       >
-        <div className="mb-2 text-3xl">☁️</div>
+        <Logo size={44} className="mb-3 rounded-xl opacity-90" />
         {scanning ? (
           <p className="text-sm text-[var(--color-muted)]">
             {t('upload.scanning')} {scanning > 1 ? scanning : ''}
