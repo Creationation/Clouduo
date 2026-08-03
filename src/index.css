@@ -396,6 +396,17 @@ body {
 
 button {
   font: inherit;
+  /* Coupe le délai de double-tap sur ce qui se touche. Sans ça, un Android
+     dont le zoom est forcé dans les réglages d'accessibilité attend 300 ms
+     avant de valider l'appui, puis émet un clic fantôme qui retombe sur le
+     panneau tout juste ouvert. Le zoom à deux doigts reste possible. */
+  touch-action: manipulation;
+}
+
+a,
+label,
+[role='button'] {
+  touch-action: manipulation;
 }
 
 input,

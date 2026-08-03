@@ -32,6 +32,7 @@ const dict = {
     'select.all': 'Tout sélectionner',
     'select.none': 'Tout désélectionner',
     'select.trashed': 'mis à la corbeille',
+    'select.moved': 'déplacé(s)',
 
     'action.move': 'Déplacer',
     'move.title': 'Déplacer vers',
@@ -191,6 +192,7 @@ const dict = {
     'select.all': 'Alle auswählen',
     'select.none': 'Auswahl aufheben',
     'select.trashed': 'in den Papierkorb verschoben',
+    'select.moved': 'verschoben',
 
     'action.move': 'Verschieben',
     'move.title': 'Verschieben nach',

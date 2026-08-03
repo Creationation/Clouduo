@@ -3,6 +3,7 @@ import type { FileRow } from '../lib/types'
 import { updateFileInfo, isoToLocalInput, localInputToIso } from '../lib/files'
 import { useI18n } from '../lib/i18n'
 import { Button, Spinner } from './ui'
+import { useBackdropDismiss } from './overlay'
 
 /**
  * Édition du nom et de la date d'un fichier. La date pilote le classement
@@ -22,6 +23,7 @@ export default function FileEditDialog({
   const [date, setDate] = useState(isoToLocalInput(file.taken_at ?? file.created_at))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const backdrop = useBackdropDismiss(onClose)
 
   const save = async () => {
     const trimmed = name.trim()
@@ -46,7 +48,7 @@ export default function FileEditDialog({
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-      onClick={onClose}
+      {...backdrop}
     >
       <div
         className="glass glass-menu w-full max-w-sm rounded-3xl p-4"

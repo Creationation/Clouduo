@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { useBackdropDismiss } from './overlay'
 
 export default function BottomSheet({
   open,
@@ -13,9 +14,29 @@ export default function BottomSheet({
 }) {
   if (!open) return null
   return (
+    <Sheet onClose={onClose} title={title}>
+      {children}
+    </Sheet>
+  )
+}
+
+// Contenu extrait dans son propre composant pour que le garde-fou du fond
+// (voir useBackdropDismiss) reparte de zéro à chaque ouverture: il se règle au
+// montage, et ce composant n'existe que pendant l'affichage.
+function Sheet({
+  onClose,
+  title,
+  children,
+}: {
+  onClose: () => void
+  title?: string
+  children: ReactNode
+}) {
+  const backdrop = useBackdropDismiss(onClose)
+  return (
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/50"
-      onClick={onClose}
+      {...backdrop}
     >
       <div
         className="glass glass-menu safe-bottom w-full max-w-md rounded-t-3xl p-2"

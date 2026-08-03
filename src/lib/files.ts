@@ -30,15 +30,31 @@ export async function listFiles(opts: {
   return (data ?? []) as FileRow[]
 }
 
+/**
+ * PostgREST met les filtres dans l'adresse: un `in.(...)` de 200 identifiants
+ * dépasse la longueur d'URL admise et la requête est refusée avant même
+ * d'atteindre la base. Avec « Tout sélectionner » sur une bonne journée de
+ * photos, c'est vite atteint. On découpe donc en lots.
+ */
+const ID_BATCH = 80
+
+async function inBatches(ids: string[], run: (batch: string[]) => Promise<void>) {
+  for (let i = 0; i < ids.length; i += ID_BATCH) {
+    await run(ids.slice(i, i + ID_BATCH))
+  }
+}
+
 // Déplace des fichiers vers un dossier (null = racine du scope). Seule la
 // ligne change, l'objet R2 n'est pas déplacé ni réécrit.
 export async function moveFiles(ids: string[], folderId: string | null) {
   if (!ids.length) return
-  const { error } = await supabase
-    .from('files')
-    .update({ folder_id: folderId })
-    .in('id', ids)
-  if (error) throw error
+  await inBatches(ids, async (batch) => {
+    const { error } = await supabase
+      .from('files')
+      .update({ folder_id: folderId })
+      .in('id', batch)
+    if (error) throw error
+  })
 }
 
 /**
@@ -51,11 +67,13 @@ export async function moveFiles(ids: string[], folderId: string | null) {
  */
 export async function moveToShared(ids: string[]) {
   if (!ids.length) return
-  const { error } = await supabase
-    .from('files')
-    .update({ scope: 'shared', folder_id: null })
-    .in('id', ids)
-  if (error) throw error
+  await inBatches(ids, async (batch) => {
+    const { error } = await supabase
+      .from('files')
+      .update({ scope: 'shared', folder_id: null })
+      .in('id', batch)
+    if (error) throw error
+  })
 }
 
 export interface FolderNode extends Folder {

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useI18n } from '../lib/i18n'
 import { Button } from './ui'
+import { useBackdropDismiss } from './overlay'
 
 /**
  * Remplace window.prompt, qui est peu fiable une fois l'app installée:
@@ -24,6 +25,7 @@ export default function TextPromptDialog({
 }) {
   const { t } = useI18n()
   const [value, setValue] = useState(initial)
+  const backdrop = useBackdropDismiss(onCancel)
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -34,7 +36,7 @@ export default function TextPromptDialog({
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-      onClick={onCancel}
+      {...backdrop}
     >
       <form
         onSubmit={submit}

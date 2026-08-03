@@ -5,6 +5,7 @@ import { useI18n } from '../lib/i18n'
 import { Button, Spinner } from './ui'
 import { IconFolder } from './icons'
 import TextPromptDialog from './TextPromptDialog'
+import { useBackdropDismiss } from './overlay'
 
 /**
  * Choix du dossier de destination pour un lot de fichiers.
@@ -20,7 +21,7 @@ export default function MoveDialog({
   ids: string[]
   scope: Scope
   onClose: () => void
-  onMoved: () => void
+  onMoved: (count: number) => void
 }) {
   const { t } = useI18n()
   const [folders, setFolders] = useState<FolderNode[]>([])
@@ -28,6 +29,7 @@ export default function MoveDialog({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [prompting, setPrompting] = useState(false)
+  const backdrop = useBackdropDismiss(onClose)
 
   const load = () => {
     setLoading(true)
@@ -44,7 +46,7 @@ export default function MoveDialog({
     setError('')
     try {
       await moveFiles(ids, folderId)
-      onMoved()
+      onMoved(ids.length)
       onClose()
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
@@ -65,7 +67,7 @@ export default function MoveDialog({
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-      onClick={onClose}
+      {...backdrop}
     >
       <div
         className="glass glass-menu flex max-h-[70vh] w-full max-w-sm flex-col rounded-3xl p-4"

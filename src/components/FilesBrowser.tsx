@@ -626,7 +626,11 @@ export default function FilesBrowser({
           ids={[...selection]}
           scope={scope}
           onClose={() => setMoving(false)}
-          onMoved={() => {
+          onMoved={(count) => {
+            // Sans confirmation, un déplacement réussi ressemble à un
+            // déplacement raté: la fenêtre se referme et les fichiers ont
+            // simplement disparu de l'écran où on se trouve.
+            toast(`${count} · ${t('select.moved')}`, 'success')
             setSelection(new Set())
             load()
           }}
