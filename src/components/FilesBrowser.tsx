@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, NavLink } from 'react-router-dom'
 import type { FileRow, FileKind, Folder, Scope } from '../lib/types'
 import {
@@ -77,6 +77,23 @@ function groupByDay(files: FileRow[], locale: string) {
   })
 }
 
+// Quatre densités, de la planche-contact à la grande vignette. Les valeurs
+// montent d'un cran sur écran large: à surface égale, un bureau tient plus de
+// colonnes qu'un téléphone sans que les vignettes deviennent minuscules.
+type TileSize = 'xs' | 's' | 'm' | 'l'
+const GRID: Record<TileSize, string> = {
+  xs: 'grid-cols-5 gap-0.5 sm:grid-cols-8',
+  s: 'grid-cols-4 gap-1 sm:grid-cols-6',
+  m: 'grid-cols-3 gap-1.5 sm:grid-cols-5',
+  l: 'grid-cols-2 gap-2 sm:grid-cols-3',
+}
+const SIZES: { key: TileSize; label: string }[] = [
+  { key: 'xs', label: 'XS' },
+  { key: 's', label: 'S' },
+  { key: 'm', label: 'M' },
+  { key: 'l', label: 'L' },
+]
+
 export default function FilesBrowser({
   scope,
   mode = 'media',
@@ -106,6 +123,23 @@ export default function FilesBrowser({
   const [newFolder, setNewFolder] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
 
+  // Taille des vignettes: liée à l'APPAREIL, comme le thème. On ne veut pas
+  // la même densité sur un téléphone et sur un écran de bureau.
+  const [size, setSize] = useState<TileSize>(
+    () => (localStorage.getItem('tileSize') as TileSize) || 'm',
+  )
+  const chooseSize = (s: TileSize) => {
+    localStorage.setItem('tileSize', s)
+    setSize(s)
+  }
+
+  // Mode sélection: tant qu'il est éteint, les tuiles restent nues. Les
+  // pastilles et le bouton d'actions sur chaque vignette, c'est exactement ce
+  // qui faisait « vieux gestionnaire de fichiers ». Un appui long les rappelle.
+  const [picking, setPicking] = useState(false)
+  const selecting = picking || selection.size > 0
+  const longPress = useRef<number | null>(null)
+
   const folderId = crumbs[crumbs.length - 1].id
   const isDocs = mode === 'documents'
 
@@ -133,16 +167,29 @@ export default function FilesBrowser({
       setFiles(fi)
       if (!isDocs) setViewerList(fi)
 
-      // Les miniatures sont un confort: leur échec ne doit pas empêcher la
-      // galerie de s'afficher, on retombe sur les vignettes de repli.
+      // Les miniatures ne doivent pas empêcher la galerie de s'afficher, mais
+      // leur échec ne doit plus être muet non plus: une galerie entièrement
+      // grise, sans un mot, ne laisse aucune prise pour comprendre.
       const keys = fi.map((f) => f.thumb_key).filter(Boolean) as string[]
-      if (keys.length) signBatch(keys).then(setThumbs).catch(() => setThumbs({}))
+      if (keys.length)
+        signBatch(keys)
+          .then(setThumbs)
+          .catch((e) => {
+            setThumbs({})
+            toast(
+              `${t('common.thumbsFailed')} ${
+                e instanceof Error ? e.message : String(e)
+              }`,
+              'error',
+            )
+          })
       else setThumbs({})
     } catch (e) {
       setLoadError(e instanceof Error ? e.message : String(e))
     } finally {
       setLoading(false)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scope, folderId, kinds, asc, isDocs])
 
   useEffect(() => {
@@ -152,6 +199,7 @@ export default function FilesBrowser({
   // Une sélection n'a plus de sens après un changement de dossier ou de tri.
   useEffect(() => {
     setSelection(new Set())
+    setPicking(false)
   }, [folderId, scope, mode, kind, asc])
 
   const groups = useMemo(() => groupByDay(files, locale), [files, locale])
@@ -374,11 +422,46 @@ export default function FilesBrowser({
           </button>
           {files.length > 0 && (
             <button
+              onClick={() => {
+                if (selecting) {
+                  setSelection(new Set())
+                  setPicking(false)
+                } else setPicking(true)
+              }}
+              className={`shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 text-xs ${
+                selecting ? 'glass-accent' : 'bg-[var(--color-surface-2)]'
+              }`}
+            >
+              {selecting ? t('select.done') : t('select.start')}
+            </button>
+          )}
+          {selecting && files.length > 0 && (
+            <button
               onClick={toggleAll}
               className="shrink-0 whitespace-nowrap rounded-full bg-[var(--color-surface-2)] px-3 py-1.5 text-xs"
             >
               {allSelected ? t('select.none') : t('select.all')}
             </button>
+          )}
+          {!isDocs && (
+            // Densité de la grille, du contact-sheet à la grande vignette.
+            <div
+              title={t('view.size')}
+              className="inline-flex shrink-0 rounded-full bg-[var(--color-surface)] p-1 text-[11px]"
+            >
+              {SIZES.map((s) => (
+                <button
+                  key={s.key}
+                  onClick={() => chooseSize(s.key)}
+                  aria-label={`${t('view.size')} ${s.label}`}
+                  className={`rounded-full px-2.5 py-1 ${
+                    size === s.key ? 'glass-accent' : 'text-[var(--color-muted)]'
+                  }`}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
           )}
         </div>
         <button
@@ -468,25 +551,60 @@ export default function FilesBrowser({
                   ))}
                 </div>
               ) : (
-                <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4 md:grid-cols-5">
+                <div className={`grid ${GRID[size]}`}>
                   {g.files.map((f) => (
-                    <div key={f.id} className="relative">
+                    <div
+                      key={f.id}
+                      className="relative"
+                      // Appui long: on entre en sélection avec cet élément
+                      // déjà coché, comme dans une galerie de téléphone. Le
+                      // minuteur est annulé dès que le doigt bouge, sinon un
+                      // simple défilement déclencherait la sélection.
+                      onPointerDown={() => {
+                        longPress.current = window.setTimeout(() => {
+                          longPress.current = null
+                          setPicking(true)
+                          toggle(f.id)
+                        }, 450)
+                      }}
+                      onPointerUp={() => {
+                        if (longPress.current) clearTimeout(longPress.current)
+                        longPress.current = null
+                      }}
+                      onPointerMove={() => {
+                        if (longPress.current) clearTimeout(longPress.current)
+                        longPress.current = null
+                      }}
+                      onPointerCancel={() => {
+                        if (longPress.current) clearTimeout(longPress.current)
+                        longPress.current = null
+                      }}
+                      onContextMenu={(e) => e.preventDefault()}
+                    >
                       <FileTile
                         file={f}
                         thumbUrl={f.thumb_key ? thumbs[f.thumb_key] : undefined}
-                        onClick={() => openFile(f)}
+                        onClick={() => (selecting ? toggle(f.id) : openFile(f))}
                       />
-                      <SelectDot
-                        selected={selection.has(f.id)}
-                        onClick={() => toggle(f.id)}
-                      />
-                      <button
-                        onClick={() => setSheet(f)}
-                        className="absolute right-0.5 top-0.5 flex h-7 w-7 items-center justify-center rounded-full bg-black/50 text-white"
-                        aria-label="actions"
-                      >
-                        ⋯
-                      </button>
+                      {/* Une tuile nue tant qu'on ne sélectionne pas. */}
+                      {selecting && (
+                        <>
+                          <SelectDot
+                            selected={selection.has(f.id)}
+                            onClick={() => toggle(f.id)}
+                          />
+                          <button
+                            onClick={() => setSheet(f)}
+                            className="absolute right-1 top-1 flex h-7 w-7 items-center justify-center rounded-full bg-black/45 text-white backdrop-blur-sm"
+                            aria-label="actions"
+                          >
+                            ⋯
+                          </button>
+                        </>
+                      )}
+                      {selection.has(f.id) && (
+                        <span className="pointer-events-none absolute inset-0 rounded-xl ring-2 ring-[var(--color-accent)]" />
+                      )}
                     </div>
                   ))}
                 </div>

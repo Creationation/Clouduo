@@ -172,6 +172,10 @@ const dict = {
     'common.files': 'fichiers',
     'common.loading': 'Chargement...',
     'common.loadFailed': 'Chargement impossible',
+    'common.thumbsFailed': 'Aperçus indisponibles :',
+    'select.start': 'Sélectionner',
+    'select.done': 'Terminé',
+    'view.size': 'Taille des vignettes',
   },
   de: {
     'app.name': 'Clouduo',
@@ -332,6 +336,10 @@ const dict = {
     'common.files': 'Dateien',
     'common.loading': 'Laden...',
     'common.loadFailed': 'Laden fehlgeschlagen',
+    'common.thumbsFailed': 'Vorschauen nicht verfügbar:',
+    'select.start': 'Auswählen',
+    'select.done': 'Fertig',
+    'view.size': 'Vorschaugröße',
   },
 } as const
 
