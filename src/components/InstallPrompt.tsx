@@ -34,7 +34,7 @@ export default function InstallPrompt() {
     <div className="mx-auto mb-2 flex max-w-2xl items-center gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
       <Logo size={28} className="rounded-lg" />
       <p className="flex-1 text-xs text-[var(--color-muted)]">
-        Installe Clouduo sur ton écran d'accueil.
+        Installe BubuCloud sur ton écran d'accueil.
       </p>
       <button
         onClick={async () => {

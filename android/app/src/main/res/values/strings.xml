@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Clouduo</string>
-    <string name="title_activity_main">Clouduo</string>
+    <string name="app_name">BubuCloud</string>
+    <string name="title_activity_main">BubuCloud</string>
     <string name="package_name">com.creationation.clouduo</string>
     <string name="custom_url_scheme">com.creationation.clouduo</string>
 </resources>

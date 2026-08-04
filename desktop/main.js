@@ -1,4 +1,4 @@
-// App bureau Clouduo: une fenêtre native sur l'app déployée.
+// App bureau BubuCloud: une fenêtre native sur l'app déployée.
 // Même principe que l'APK (wrapper sur l'URL), donc une seule version à
 // maintenir: un déploiement Vercel met à jour le bureau et le téléphone.
 const { app, BrowserWindow, shell, Menu, session, globalShortcut } = require('electron')

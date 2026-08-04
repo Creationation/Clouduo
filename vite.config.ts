@@ -12,8 +12,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
       manifest: {
-        name: 'Clouduo',
-        short_name: 'Clouduo',
+        name: 'BubuCloud',
+        short_name: 'BubuCloud',
         description: 'Notre cloud privé',
         lang: 'fr',
         theme_color: '#dbe4ff',

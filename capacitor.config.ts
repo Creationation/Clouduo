@@ -10,7 +10,7 @@ import type { CapacitorConfig } from '@capacitor/cli'
  */
 const config: CapacitorConfig = {
   appId: 'com.creationation.clouduo',
-  appName: 'Clouduo',
+  appName: 'BubuCloud',
   webDir: 'dist',
   server: {
     url: 'https://clouduo-puce.vercel.app',

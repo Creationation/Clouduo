@@ -1,5 +1,5 @@
 /**
- * Logo Clouduo, en SVG et non en emoji: ☁️ n'a pas le même dessin d'une
+ * Logo BubuCloud, en SVG et non en emoji: ☁️ n'a pas le même dessin d'une
  * plateforme à l'autre et rend mal sous Windows. Même tracé que favicon.svg,
  * donc l'icône de l'app, l'onglet du navigateur et l'écran de connexion
  * montrent exactement la même chose.
@@ -18,7 +18,7 @@ export default function Logo({
       viewBox="0 0 512 512"
       className={className}
       role="img"
-      aria-label="Clouduo"
+      aria-label="BubuCloud"
     >
       <defs>
         <linearGradient id="clouduo-bg" x1="0" y1="0" x2="1" y2="1">

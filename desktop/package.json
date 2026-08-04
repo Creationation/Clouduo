@@ -1,12 +1,12 @@
 {
-  "name": "clouduo-desktop",
+  "name": "bubucloud-desktop",
   "version": "1.0.0",
-  "description": "Clouduo - notre cloud privé",
+  "description": "BubuCloud - notre cloud privé",
   "main": "main.js",
   "private": true,
   "scripts": {
     "start": "electron .",
-    "pack": "electron-packager . Clouduo --platform=win32 --arch=x64 --icon=build/icon.ico --out=dist --overwrite --app-version=1.0.0 --ignore=\"^/dist\"",
+    "pack": "electron-packager . BubuCloud --platform=win32 --arch=x64 --icon=build/icon.ico --out=dist --overwrite --app-version=1.0.0 --ignore=\"^/dist\"",
     "dist": "electron-builder --win",
     "dist:portable": "electron-builder --win portable"
   },
@@ -18,7 +18,7 @@
   },
   "build": {
     "appId": "com.creationation.clouduo",
-    "productName": "Clouduo",
+    "productName": "BubuCloud",
     "files": [
       "main.js",
       "build/**"
@@ -34,7 +34,7 @@
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
-      "shortcutName": "Clouduo"
+      "shortcutName": "BubuCloud"
     }
   }
 }

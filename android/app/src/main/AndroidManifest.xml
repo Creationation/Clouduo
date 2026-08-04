@@ -19,7 +19,7 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
-            <!-- Partage Android: Clouduo apparaît dans le menu Partager.
+            <!-- Partage Android: BubuCloud apparaît dans le menu Partager.
                  SEND pour un fichier, SEND_MULTIPLE pour une sélection.
                  Les trois types sont déclarés séparément: certaines galeries
                  n'envoient que image/*, d'autres passent par */*. -->

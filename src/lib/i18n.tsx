@@ -14,7 +14,7 @@ export type { Lang }
 // Dictionnaire simple FR/DE. FR = référence.
 const dict = {
   fr: {
-    'app.name': 'Clouduo',
+    'app.name': 'BubuCloud',
     'nav.gallery': 'Galerie',
     'nav.shared': 'Commun',
     'nav.upload': 'Ajouter',
@@ -178,7 +178,7 @@ const dict = {
     'view.size': 'Taille des vignettes',
   },
   de: {
-    'app.name': 'Clouduo',
+    'app.name': 'BubuCloud',
     'nav.gallery': 'Galerie',
     'nav.shared': 'Gemeinsam',
     'nav.upload': 'Hinzufügen',
