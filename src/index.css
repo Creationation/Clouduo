@@ -429,8 +429,22 @@ input::placeholder {
     transform: none;
   }
 }
+/* Le mode de remplissage est « backwards » et PAS « both », et ce n'est pas un
+   détail d'animation.
+   Avec « both », l'animation continue de s'appliquer une fois terminée. Son
+   dernier palier vaut pourtant transform: none, mais le navigateur le retient
+   sous forme de matrice identité, et une matrice, même identité, fait de
+   l'élément le référent de tout ce qui est en position fixed à l'intérieur.
+   Résultat: chaque panneau « fixed inset-0 » ne couvrait plus l'écran mais
+   toute la hauteur de la page. Sur une galerie longue, le fond sombre
+   s'affichait bien (l'écran s'assombrissait) alors que la fenêtre, centrée
+   dans une boîte de 3000 px, se retrouvait très en dessous du champ de vision.
+   D'où un « ça bloque » chez celui qui a beaucoup de fichiers et rien du tout
+   chez celui qui en a quatre.
+   « backwards » ne remplit qu'avant le départ: une fois l'animation finie,
+   transform revient à none et les panneaux se recalent sur l'écran. */
 .page-in {
-  animation: page-in 260ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  animation: page-in 260ms cubic-bezier(0.22, 0.61, 0.36, 1) backwards;
 }
 
 /* Accessibilité: on respecte le réglage système "moins d'animations". */

@@ -6,6 +6,7 @@ import { Button, Spinner } from './ui'
 import { IconFolder } from './icons'
 import TextPromptDialog from './TextPromptDialog'
 import { useBackdropDismiss } from './overlay'
+import Portal from './Portal'
 
 /**
  * Choix du dossier de destination pour un lot de fichiers.
@@ -65,6 +66,7 @@ export default function MoveDialog({
   }
 
   return (
+    <Portal>
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
       {...backdrop}
@@ -131,5 +133,6 @@ export default function MoveDialog({
         />
       )}
     </div>
+    </Portal>
   )
 }

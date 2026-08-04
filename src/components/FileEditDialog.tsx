@@ -4,6 +4,7 @@ import { updateFileInfo, isoToLocalInput, localInputToIso } from '../lib/files'
 import { useI18n } from '../lib/i18n'
 import { Button, Spinner } from './ui'
 import { useBackdropDismiss } from './overlay'
+import Portal from './Portal'
 
 /**
  * Édition du nom et de la date d'un fichier. La date pilote le classement
@@ -46,6 +47,7 @@ export default function FileEditDialog({
   }
 
   return (
+    <Portal>
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
       {...backdrop}
@@ -90,5 +92,6 @@ export default function FileEditDialog({
         </div>
       </div>
     </div>
+    </Portal>
   )
 }

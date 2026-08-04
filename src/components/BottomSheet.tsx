@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { useBackdropDismiss } from './overlay'
+import Portal from './Portal'
 
 export default function BottomSheet({
   open,
@@ -34,6 +35,7 @@ function Sheet({
 }) {
   const backdrop = useBackdropDismiss(onClose)
   return (
+    <Portal>
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/50"
       {...backdrop}
@@ -50,6 +52,7 @@ function Sheet({
         <div className="flex flex-col">{children}</div>
       </div>
     </div>
+    </Portal>
   )
 }
 

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useI18n } from '../lib/i18n'
 import { Button } from './ui'
 import { useBackdropDismiss } from './overlay'
+import Portal from './Portal'
 
 /**
  * Remplace window.prompt, qui est peu fiable une fois l'app installée:
@@ -34,6 +35,7 @@ export default function TextPromptDialog({
   }
 
   return (
+    <Portal>
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
       {...backdrop}
@@ -61,5 +63,6 @@ export default function TextPromptDialog({
         </div>
       </form>
     </div>
+    </Portal>
   )
 }
