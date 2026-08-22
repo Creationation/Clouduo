@@ -1,7 +1,15 @@
 import { useQueue } from '../lib/queue'
 import { useI18n } from '../lib/i18n'
+import { uploadErrorKey } from '../lib/uploadErrors'
 import { formatBytes } from './ui'
 import type { QueueItem } from '../lib/db'
+
+// L'erreur brute du navigateur ne parle qu'aux développeurs: on la remplace
+// par une phrase utile quand on sait de quoi il s'agit.
+function humanError(raw: string, t: ReturnType<typeof useI18n>['t']): string {
+  const key = uploadErrorKey(raw)
+  return key ? t(key) : raw
+}
 
 function StatusPill({ item }: { item: QueueItem }) {
   const { t } = useI18n()
@@ -54,7 +62,7 @@ export default function QueueList() {
                 <p className="truncate text-sm">{item.name}</p>
                 <p className="text-xs text-[var(--color-muted)]">
                   {formatBytes(item.size)}
-                  {item.error ? ` · ${item.error}` : ''}
+                  {item.error ? ` · ${humanError(item.error, t)}` : ''}
                 </p>
               </div>
               <StatusPill item={item} />

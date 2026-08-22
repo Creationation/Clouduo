@@ -9,15 +9,20 @@ import {
 import {
   allItems,
   deleteItem,
+  dropBlob,
+  pruneBlobs,
+  putBlob,
   putItem,
   putItems,
   type QueueItem,
   type QueueStatus,
 } from './db'
+import { useI18n } from './i18n'
 import { detectKind, resolveMime } from './media'
 import { useToast } from './toast'
 import { processItem } from './uploader'
 import { invokeFunction } from './supabase'
+import { uploadErrorKey } from './uploadErrors'
 import type { Scope } from './types'
 
 // Fichiers traités en parallèle. Chaque gros fichier ouvre en plus plusieurs
@@ -48,9 +53,16 @@ function uuid() {
   return crypto.randomUUID()
 }
 
+const isFinished = (s: QueueStatus) => s === 'done' || s === 'dedup'
+
 export function QueueProvider({ children }: { children: ReactNode }) {
   const { show: notify } = useToast()
+  const { t } = useI18n()
   const itemsRef = useRef<QueueItem[]>([])
+  // Une rafale d'échecs (le réseau qui saute au milieu de vingt photos) ne
+  // doit pas empiler vingt bandeaux rouges: le premier est détaillé, la suite
+  // est résumée en une ligne.
+  const burst = useRef<{ n: number; timer: number | null }>({ n: 0, timer: null })
   const controllers = useRef<Map<string, AbortController>>(new Map())
   const running = useRef<Set<string>>(new Set())
   const pausedIds = useRef<Set<string>>(new Set())
@@ -59,24 +71,48 @@ export function QueueProvider({ children }: { children: ReactNode }) {
 
   // Charger la file persistée au démarrage; relancer ce qui était en cours.
   useEffect(() => {
-    allItems().then((items) => {
-      for (const it of items) {
-        if (it.status === 'uploading' || it.status === 'processing') {
-          it.status = 'pending' // reprendre proprement
+    // D'abord rendre l'espace des octets qui ne servent plus (envois déjà
+    // terminés, lignes disparues): sans ça le stockage du site grossit à
+    // chaque envoi et finit par refuser d'écrire.
+    pruneBlobs()
+      .catch(() => {})
+      .then(allItems)
+      .then((items) => {
+        for (const it of items) {
+          if (it.status === 'uploading' || it.status === 'processing') {
+            it.status = 'pending' // reprendre proprement
+          }
+          // Un envoi non terminé dont les octets ont disparu ne peut pas
+          // reprendre. On le dit au lieu de le laisser tourner dans le vide.
+          if (!it.file && !isFinished(it.status)) {
+            it.status = 'error'
+            it.error = 'fichier introuvable, a resélectionner'
+            putItem(it)
+          }
         }
-      }
-      itemsRef.current = items
-      rerender()
-      pump()
-    })
+        itemsRef.current = items
+        rerender()
+        pump()
+      })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // N'écrit QUE les métadonnées: les octets sont à part et ne bougent plus.
   const persist = (it: QueueItem) => putItem(it)
+
+  // Un envoi terminé n'a plus besoin de ses octets: on les rend tout de suite,
+  // sans attendre que quelqu'un vide la liste à la main.
+  const releaseBytes = (it: QueueItem) => {
+    if (!isFinished(it.status)) return
+    it.file = undefined
+    it.thumbBlob = undefined
+    dropBlob(it.id).catch(() => {})
+  }
 
   const makeUpdate = (item: QueueItem) => async (patch: Partial<QueueItem>) => {
     Object.assign(item, patch)
     await persist(item)
+    releaseBytes(item)
     rerender()
   }
 
@@ -84,7 +120,21 @@ export function QueueProvider({ children }: { children: ReactNode }) {
     item.status = status
     if (error !== undefined) item.error = error
     persist(item)
+    releaseBytes(item)
     rerender()
+  }
+
+  const reportError = (name: string, msg: string) => {
+    const key = uploadErrorKey(msg)
+    const b = burst.current
+    b.n += 1
+    if (b.n === 1) notify?.(`${name} · ${key ? t(key) : msg}`, 'error')
+    if (b.timer) clearTimeout(b.timer)
+    b.timer = window.setTimeout(() => {
+      if (b.n > 1) notify?.(`${b.n} ${t('upload.errMany')}`, 'error')
+      b.n = 0
+      b.timer = null
+    }, 4000)
   }
 
   const start = async (item: QueueItem) => {
@@ -102,7 +152,7 @@ export function QueueProvider({ children }: { children: ReactNode }) {
         setStatus(item, 'error', msg)
         // Une erreur d'envoi restait invisible tant qu'on ne regardait pas la
         // file: on la remonte à l'écran, quel que soit l'onglet affiché.
-        notify?.(`${item.name} — ${msg}`, 'error')
+        reportError(item.name, msg)
       }
     } finally {
       running.current.delete(item.id)
@@ -147,10 +197,24 @@ export function QueueProvider({ children }: { children: ReactNode }) {
     }
     itemsRef.current.push(...created)
     // Une seule transaction: ajouter un dossier de milliers de fichiers doit
-    // rester instantané.
+    // rester instantané. Les lignes sont légères, les octets suivent à part.
     await putItems(created)
     rerender()
     pump()
+    // Les octets, une fois chacun, uniquement pour pouvoir reprendre après
+    // fermeture de l'app. Si le stockage refuse (téléphone plein), l'envoi
+    // part quand même: il ne sera simplement pas reprenable. Jamais de blocage.
+    for (const it of created) {
+      if (!it.file || isFinished(it.status)) continue
+      try {
+        await putBlob(it.id, it.file)
+        // Un petit fichier peut être arrivé avant qu'on ait fini de l'écrire:
+        // dans ce cas ses octets ne servent déjà plus à rien.
+        if (isFinished(it.status)) await dropBlob(it.id)
+      } catch {
+        /* pas de reprise possible pour celui-là, l'envoi continue */
+      }
+    }
   }
 
   const pause = (id: string) => {
@@ -203,18 +267,14 @@ export function QueueProvider({ children }: { children: ReactNode }) {
   }
 
   const clearFinished = () => {
-    const finished = itemsRef.current.filter(
-      (i) => i.status === 'done' || i.status === 'dedup',
-    )
+    const finished = itemsRef.current.filter((i) => isFinished(i.status))
     finished.forEach((i) => deleteItem(i.id))
-    itemsRef.current = itemsRef.current.filter(
-      (i) => i.status !== 'done' && i.status !== 'dedup',
-    )
+    itemsRef.current = itemsRef.current.filter((i) => !isFinished(i.status))
     rerender()
   }
 
   const activeCount = itemsRef.current.filter(
-    (i) => i.status !== 'done' && i.status !== 'dedup' && i.status !== 'error',
+    (i) => !isFinished(i.status) && i.status !== 'error',
   ).length
 
   // Sur Android, l'écran qui s'éteint suspend la WebView: l'envoi s'arrête et

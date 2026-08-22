@@ -51,7 +51,7 @@ export default function Backup() {
         <div className="mt-4 rounded-xl border border-[var(--color-success)]/30 bg-[var(--color-success)]/10 p-4 text-sm">
           <p className="font-medium">
             ✓ {recap.count}{' '}
-            {recap.count > 1 ? t('common.files') : t('common.file')} — {formatBytes(recap.bytes)}
+            {recap.count > 1 ? t('common.files') : t('common.file')} · {formatBytes(recap.bytes)}
           </p>
           <p className="mt-1 text-[var(--color-muted)]">
             Tu peux maintenant libérer de l'espace sur ton téléphone.

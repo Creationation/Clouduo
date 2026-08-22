@@ -79,12 +79,18 @@ export async function processItem(
   const userId = auth.user?.id
   if (!userId) throw new Error('non authentifié')
 
+  // Les octets vivent à part (voir db.ts). Une reprise dont le stockage a été
+  // vidé par le système arrive ici sans fichier: on le dit clairement au lieu
+  // de planter sur un accès à undefined.
+  const file = item.file
+  if (!file) throw new Error('fichier introuvable, a resélectionner')
+
   // 1) Préparation (une seule fois; ignorée si on reprend un upload en cours).
   if (!item.hash) {
     await update({ status: 'processing', progress: 0 })
-    const meta = await extractMeta(item.file)
-    const hash = await fileHash(item.file)
-    const thumbBlob = await makeThumbnail(item.file, meta.kind)
+    const meta = await extractMeta(file)
+    const hash = await fileHash(file)
+    const thumbBlob = await makeThumbnail(file, meta.kind)
     item.thumbBlob = thumbBlob ?? undefined
     await update({
       hash,
@@ -124,9 +130,9 @@ export async function processItem(
   const useMultipart = item.size > MULTIPART_THRESHOLD
 
   if (!useMultipart) {
-    await uploadSimple(item, update, signal)
+    await uploadSimple(item, file, update, signal)
   } else {
-    await uploadMultipart(item, update, signal)
+    await uploadMultipart(item, file, update, signal)
   }
 
   // 3) Insertion de la ligne files (référence l'objet original).
@@ -168,22 +174,34 @@ export async function processItem(
 async function uploadThumb(
   thumbUploadUrl: string | null,
   item: QueueItem,
+  file: File,
   signal: AbortSignal,
 ) {
-  if (thumbUploadUrl && item.thumbBlob) {
-    await putWithProgress(
-      thumbUploadUrl,
-      item.thumbBlob,
-      'image/webp',
-      () => {},
-      signal,
-    ).catch(() => {
-      /* miniature best-effort: si elle échoue, on affichera un placeholder */
-    })
+  if (!thumbUploadUrl) return
+  // La miniature n'est plus rangée sur le disque avec la ligne de file: sur
+  // une reprise elle n'existe plus en mémoire. On la refabrique, sinon le
+  // fichier arriverait dans la galerie sans aperçu.
+  if (!item.thumbBlob) {
+    item.thumbBlob = (await makeThumbnail(file, item.kind).catch(() => null)) ?? undefined
   }
+  if (!item.thumbBlob) return
+  await putWithProgress(
+    thumbUploadUrl,
+    item.thumbBlob,
+    'image/webp',
+    () => {},
+    signal,
+  ).catch(() => {
+    /* miniature best-effort: si elle échoue, on affichera un placeholder */
+  })
 }
 
-async function uploadSimple(item: QueueItem, update: Update, signal: AbortSignal) {
+async function uploadSimple(
+  item: QueueItem,
+  file: File,
+  update: Update,
+  signal: AbortSignal,
+) {
   // La clé dépend de item.id: re-signer redonne la MÊME clé, donc réessayer
   // est sans effet de bord (pas d'objet orphelin).
   for (let attempt = 1; ; attempt++) {
@@ -195,13 +213,13 @@ async function uploadSimple(item: QueueItem, update: Update, signal: AbortSignal
       withThumb: item.hasThumb,
     })
     await update({ status: 'uploading', r2_key: sign.r2_key, thumb_key: sign.thumb_key })
-    if (attempt === 1) await uploadThumb(sign.thumbUploadUrl, item, signal)
+    if (attempt === 1) await uploadThumb(sign.thumbUploadUrl, item, file, signal)
 
     let last = 0
     try {
       await putWithProgress(
         sign.uploadUrl,
-        item.file,
+        file,
         item.mime,
         (loaded) => {
           const now = performance.now()
@@ -221,6 +239,7 @@ async function uploadSimple(item: QueueItem, update: Update, signal: AbortSignal
 
 async function uploadMultipart(
   item: QueueItem,
+  file: File,
   update: Update,
   signal: AbortSignal,
 ) {
@@ -247,7 +266,7 @@ async function uploadMultipart(
       partSize: chosen,
       parts: [],
     })
-    await uploadThumb(sign.thumbUploadUrl, item, signal)
+    await uploadThumb(sign.thumbUploadUrl, item, file, signal)
   } else {
     await update({ status: 'uploading' })
   }
@@ -334,7 +353,7 @@ async function uploadMultipart(
       if (n === null) return
 
       const start = (n - 1) * partSize
-      const blob = item.file.slice(start, start + sizeOf(n))
+      const blob = file.slice(start, start + sizeOf(n))
 
       for (let attempt = 1; ; attempt++) {
         inflight.set(n, 0)

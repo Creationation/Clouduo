@@ -120,9 +120,9 @@ export default function Inbox() {
                 )}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm">{it.file?.name ?? '—'}</p>
+                <p className="truncate text-sm">{it.file?.name ?? '·'}</p>
                 <p className="text-xs text-[var(--color-muted)]">
-                  {t('inbox.from')} {it.sender?.display_name ?? '—'}
+                  {t('inbox.from')} {it.sender?.display_name ?? '·'}
                   {it.file ? ` · ${formatBytes(it.file.size_bytes)}` : ''}
                 </p>
                 {it.note && <p className="mt-1 text-xs italic">« {it.note} »</p>}
