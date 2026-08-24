@@ -11,6 +11,7 @@ public class MainActivity extends BridgeActivity {
         // et un plugin déclaré après ne recevrait pas l'intention de partage
         // qui a lancé l'application.
         registerPlugin(ShareTargetPlugin.class);
+        registerPlugin(MediaSavePlugin.class);
         super.onCreate(savedInstanceState);
     }
 }

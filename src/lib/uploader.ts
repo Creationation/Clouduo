@@ -115,12 +115,7 @@ export async function processItem(
       // Déjà chez moi: aucun ré-upload. Si c'était un envoi, on transfère la
       // ligne existante plutôt que de renvoyer les octets.
       if (item.sendToUserId) {
-        await supabase.from('transfers').insert({
-          file_id: dup[0].id,
-          from_user: userId,
-          to_user: item.sendToUserId,
-          note: item.note ?? null,
-        })
+        await offerTransfer(dup[0].id, userId, item)
       }
       await update({ status: 'dedup', progress: 1 })
       return
@@ -136,6 +131,25 @@ export async function processItem(
   }
 
   // 3) Insertion de la ligne files (référence l'objet original).
+  //
+  // Idempotent par la clé R2, qui découle de item.id et ne change donc pas
+  // d'une tentative à l'autre. Sans cette garde, un envoi qui réussit mais
+  // dont la réponse est perdue (réseau coupé juste après) était rejoué depuis
+  // ici: deuxième ligne files, deuxième transfert, et le destinataire
+  // recevait tout en double.
+  const { data: already } = await supabase
+    .from('files')
+    .select('id')
+    .eq('owner_id', userId)
+    .eq('r2_key', item.r2_key!)
+    .is('deleted_at', null)
+    .limit(1)
+  if (already && already.length > 0) {
+    if (item.sendToUserId) await offerTransfer(already[0].id, userId, item)
+    await update({ status: 'done', progress: 1 })
+    return
+  }
+
   const { data: inserted, error } = await supabase
     .from('files')
     .insert({
@@ -160,15 +174,30 @@ export async function processItem(
 
   // 4) Envoi direct (upload + transfert en une action).
   if (item.sendToUserId && inserted) {
-    await supabase.from('transfers').insert({
-      file_id: inserted.id,
-      from_user: userId,
-      to_user: item.sendToUserId,
-      note: item.note ?? null,
-    })
+    await offerTransfer(inserted.id, userId, item)
   }
 
   await update({ status: 'done', progress: 1 })
+}
+
+/**
+ * Propose un fichier à l'autre personne, une seule fois.
+ *
+ * Un index unique (migration 20260824000012) interdit deux propositions en
+ * attente du même fichier vers la même personne. Une seconde tentative n'est
+ * donc pas une erreur à remonter: c'est la preuve que la proposition existe
+ * déjà, et l'envoi doit continuer normalement.
+ */
+async function offerTransfer(fileId: string, userId: string, item: QueueItem) {
+  const { error } = await supabase.from('transfers').insert({
+    file_id: fileId,
+    from_user: userId,
+    to_user: item.sendToUserId,
+    note: item.note ?? null,
+    batch_id: item.batchId ?? null,
+  })
+  // 23505 = violation d'unicité: la proposition est déjà là.
+  if (error && error.code !== '23505') throw error
 }
 
 async function uploadThumb(

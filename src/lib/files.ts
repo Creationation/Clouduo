@@ -20,6 +20,16 @@ export async function listFiles(opts: {
     .order('taken_at', { ascending: asc, nullsFirst: false })
     .order('created_at', { ascending: asc })
 
+  // Espace perso: filtrer explicitement sur le propriétaire, sans se reposer
+  // sur la RLS seule. Depuis qu'un fichier en attente d'acceptation est
+  // lisible par son destinataire (voir migration 20260824000011), la RLS ne
+  // suffit plus à borner « mes fichiers »: sans ce filtre, ce qui m'est
+  // proposé apparaîtrait dans ma galerie avant même que je l'accepte.
+  if (opts.scope === 'personal') {
+    const { data: auth } = await supabase.auth.getUser()
+    if (auth.user) q = q.eq('owner_id', auth.user.id)
+  }
+
   // Racine du scope: folder_id null. Sinon le dossier courant.
   q = opts.folderId ? q.eq('folder_id', opts.folderId) : q.is('folder_id', null)
 

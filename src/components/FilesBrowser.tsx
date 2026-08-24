@@ -11,6 +11,7 @@ import {
   type KindFilter,
 } from '../lib/files'
 import { signBatch, downloadOriginal } from '../lib/urls'
+import { saveFile } from '../lib/saveFile'
 import { createTransfer } from '../lib/transfers'
 import { setViewerList } from '../lib/viewerStore'
 import { useAuth } from '../lib/auth'
@@ -272,7 +273,17 @@ export default function FilesBrowser({
 
   // --- Actions sur un fichier ---
   const act = {
-    download: (f: FileRow) => downloadOriginal(f.r2_key, f.name),
+    // Une photo doit atterrir dans la Galerie, pas dans « Telechargements ».
+    // saveFile s'en charge sur telephone et retombe sur le telechargement
+    // classique ailleurs; on dit ensuite ou le fichier est reellement alle.
+    download: async (f: FileRow) => {
+      try {
+        const where = await saveFile(f)
+        if (where === 'gallery') toast(t('file.savedGallery'), 'success')
+      } catch (e) {
+        toast(e instanceof Error ? e.message : t('file.saveFailed'), 'error')
+      }
+    },
     edit: (f: FileRow) => setEditing(f),
     toShared: async (f: FileRow) => {
       await copyFile(f.id, 'shared', null)

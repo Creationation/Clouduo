@@ -51,6 +51,10 @@ export interface QueueItem {
   // Envoi direct (upload + transfert en une action)
   sendToUserId?: string
   note?: string
+  /** Marque l'envoi: tous les fichiers d'une même sélection le partagent, ce
+   *  qui permet à la boîte de réception de les présenter comme un seul envoi
+   *  au lieu d'une carte par fichier. */
+  batchId?: string
   createdAt: number
 }
 

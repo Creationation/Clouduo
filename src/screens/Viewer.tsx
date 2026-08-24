@@ -3,7 +3,10 @@ import { useNavigate, useParams } from 'react-router-dom'
 import type { FileRow } from '../lib/types'
 import { getFile } from '../lib/files'
 import { getViewerList } from '../lib/viewerStore'
-import { signOne, downloadOriginal } from '../lib/urls'
+import { signOne } from '../lib/urls'
+import { saveFile } from '../lib/saveFile'
+import { useI18n } from '../lib/i18n'
+import { useToast } from '../lib/toast'
 import { IconClose, IconDownload, IconChevron } from '../components/icons'
 import { Spinner } from '../components/ui'
 
@@ -11,6 +14,9 @@ import { Spinner } from '../components/ui'
 export default function Viewer() {
   const nav = useNavigate()
   const { id } = useParams()
+  const { t } = useI18n()
+  const { show: toast } = useToast()
+  const [saving, setSaving] = useState(false)
   const [list, setList] = useState<FileRow[]>([])
   const [index, setIndex] = useState(0)
   const [url, setUrl] = useState<string | null>(null)
@@ -43,6 +49,21 @@ export default function Viewer() {
     setZoom(false)
     signOne(file.r2_key).then(setUrl)
   }, [file])
+
+  // Enregistrement: dans la pellicule pour une photo ou une video, sinon
+  // telechargement classique. Le message dit ou le fichier est vraiment alle.
+  const onSave = async () => {
+    if (!file || saving) return
+    setSaving(true)
+    try {
+      const where = await saveFile(file)
+      toast(where === 'gallery' ? t('file.savedGallery') : file.name, 'success')
+    } catch (e) {
+      toast(e instanceof Error ? e.message : t('file.saveFailed'), 'error')
+    } finally {
+      setSaving(false)
+    }
+  }
 
   const go = useCallback(
     (dir: number) => {
@@ -79,10 +100,12 @@ export default function Viewer() {
         </button>
         <span className="truncate px-2 text-sm">{file.name}</span>
         <button
-          onClick={() => downloadOriginal(file.r2_key, file.name)}
-          className="rounded-full bg-white/10 p-2"
+          onClick={onSave}
+          disabled={saving}
+          aria-label={t('file.saveGallery')}
+          className="rounded-full bg-white/10 p-2 disabled:opacity-50"
         >
-          <IconDownload size={20} />
+          {saving ? <Spinner className="h-5 w-5" /> : <IconDownload size={20} />}
         </button>
       </div>
 
