@@ -13,7 +13,13 @@
  */
 import { registerPlugin } from '@capacitor/core'
 import { signOne, downloadOriginal } from './urls'
-import type { FileRow } from './types'
+
+/** Le strict necessaire pour enregistrer: pas besoin d'une ligne complete. */
+export interface Savable {
+  name: string
+  r2_key: string
+  mime_type: string
+}
 
 interface MediaSavePlugin {
   isSupported(): Promise<{ supported: boolean }>
@@ -92,7 +98,7 @@ export type SaveResult = 'gallery' | 'downloads' | 'browser'
  * Dans l'app, un échec est signalé comme tel: on ne bascule pas en douce vers
  * le navigateur, qui est précisément ce qu'on cherche à éviter.
  */
-export async function saveFile(file: FileRow): Promise<SaveResult> {
+export async function saveFile(file: Savable): Promise<SaveResult> {
   const p = plugin()
   if (p) {
     const url = await signOne(file.r2_key)

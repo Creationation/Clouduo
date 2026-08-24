@@ -20,14 +20,18 @@ import {
 import { useI18n } from './i18n'
 import { detectKind, resolveMime } from './media'
 import { useToast } from './toast'
+import { runExclusive } from './lane'
 import { processItem } from './uploader'
 import { invokeFunction } from './supabase'
 import { uploadErrorKey } from './uploadErrors'
 import type { Scope } from './types'
 
-// Fichiers traités en parallèle. Chaque gros fichier ouvre en plus plusieurs
-// parts simultanées (voir uploader.ts), d'où une valeur volontairement basse.
-const CONCURRENCY = 3
+// Un fichier à la fois. Trois envois simultanés ne vont pas plus vite (la
+// bande passante du téléphone est la même), mais multiplient les délais
+// d'attente, les URL signées qui expirent pendant qu'on patiente, et les
+// échecs sans cause apparente. Un gros fichier ouvre de toute façon plusieurs
+// parts en parallèle à l'intérieur de son propre envoi (voir uploader.ts).
+const CONCURRENCY = 1
 
 // Une coupure réseau ne doit pas transformer un envoi en échec définitif.
 // L'app est souvent en fond, sur un téléphone qui change de wifi ou perd la
@@ -155,7 +159,11 @@ export function QueueProvider({ children }: { children: ReactNode }) {
     const controller = new AbortController()
     controllers.current.set(item.id, controller)
     try {
-      await processItem(item, makeUpdate(item), controller.signal)
+      // File commune aux envois et aux enregistrements: chacun son tour,
+      // dans l'ordre où il a été demandé.
+      await runExclusive(() =>
+        processItem(item, makeUpdate(item), controller.signal),
+      )
     } catch (e) {
       if (controller.signal.aborted) {
         // Abort volontaire: pause si demandée, sinon l'item a été retiré.

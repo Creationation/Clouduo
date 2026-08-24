@@ -4,7 +4,7 @@ import type { FileRow } from '../lib/types'
 import { getFile } from '../lib/files'
 import { getViewerList } from '../lib/viewerStore'
 import { signOne } from '../lib/urls'
-import { saveFile, AppTooOldError } from '../lib/saveFile'
+import { useExports } from '../lib/exports'
 import { useI18n } from '../lib/i18n'
 import { useToast } from '../lib/toast'
 import { IconClose, IconDownload, IconChevron } from '../components/icons'
@@ -16,7 +16,7 @@ export default function Viewer() {
   const { id } = useParams()
   const { t } = useI18n()
   const { show: toast } = useToast()
-  const [saving, setSaving] = useState(false)
+  const { add: queueExport } = useExports()
   const [list, setList] = useState<FileRow[]>([])
   const [index, setIndex] = useState(0)
   const [url, setUrl] = useState<string | null>(null)
@@ -50,34 +50,13 @@ export default function Viewer() {
     signOne(file.r2_key).then(setUrl)
   }, [file])
 
-  // Enregistrement: dans la pellicule pour une photo ou une video, sinon
-  // telechargement classique. Le message dit ou le fichier est vraiment alle.
+  // L'enregistrement part dans la file commune: il continue meme si on
+  // referme la visionneuse ou qu'on change d'ecran, et il attend sagement son
+  // tour derriere ce qui a ete demande avant.
   const onSave = async () => {
-    if (!file || saving) return
-    setSaving(true)
-    try {
-      const where = await saveFile(file)
-      toast(
-        where === 'gallery'
-          ? t('file.savedGallery')
-          : where === 'downloads'
-            ? t('file.savedDownloads')
-            : file.name,
-        'success',
-      )
-    } catch (e) {
-      toast(
-        e instanceof AppTooOldError
-          ? t('file.appTooOld')
-          : e instanceof Error
-            ? e.message
-            : t('file.saveFailed'),
-        'error',
-        9000,
-      )
-    } finally {
-      setSaving(false)
-    }
+    if (!file) return
+    await queueExport([file])
+    toast(`${file.name} · ${t('file.queued')}`, 'success')
   }
 
   const go = useCallback(
@@ -116,11 +95,10 @@ export default function Viewer() {
         <span className="truncate px-2 text-sm">{file.name}</span>
         <button
           onClick={onSave}
-          disabled={saving}
           aria-label={t('file.saveGallery')}
-          className="rounded-full bg-white/10 p-2 disabled:opacity-50"
+          className="rounded-full bg-white/10 p-2"
         >
-          {saving ? <Spinner className="h-5 w-5" /> : <IconDownload size={20} />}
+          <IconDownload size={20} />
         </button>
       </div>
 

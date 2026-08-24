@@ -11,7 +11,7 @@ import {
   type KindFilter,
 } from '../lib/files'
 import { signBatch } from '../lib/urls'
-import { saveFile, AppTooOldError } from '../lib/saveFile'
+import { useExports } from '../lib/exports'
 import { createTransfer } from '../lib/transfers'
 import { setViewerList } from '../lib/viewerStore'
 import { useAuth } from '../lib/auth'
@@ -106,6 +106,7 @@ export default function FilesBrowser({
   const { other } = useAuth()
   const { t, lang } = useI18n()
   const { show: toast } = useToast()
+  const { add: queueExport, activeCount: exporting } = useExports()
   const locale = lang === 'de' ? 'de-AT' : 'fr-FR'
 
   const [crumbs, setCrumbs] = useState<Crumb[]>([{ id: null, name: '' }])
@@ -118,7 +119,6 @@ export default function FilesBrowser({
   const [sheet, setSheet] = useState<FileRow | null>(null)
   const [editing, setEditing] = useState<FileRow | null>(null)
   const [selection, setSelection] = useState<Set<string>>(new Set())
-  const [saving, setSaving] = useState<{ done: number; total: number } | null>(null)
   const [moving, setMoving] = useState(false)
   const [sharing, setSharing] = useState(false)
   const [sending, setSending] = useState(false)
@@ -294,50 +294,17 @@ export default function FilesBrowser({
   // Tout est ecrit par l'app: la pellicule pour une photo ou une video,
   // Telechargements pour un document. Le navigateur n'intervient que sur
   // ordinateur, ou il est la seule voie possible.
-  const saveOne = async (f: FileRow) => {
-    try {
-      const where = await saveFile(f)
-      if (where === 'gallery') toast(t('file.savedGallery'), 'success')
-      else if (where === 'downloads') toast(t('file.savedDownloads'), 'success')
-    } catch (e) {
-      toast(
-        e instanceof AppTooOldError
-          ? t('file.appTooOld')
-          : e instanceof Error
-            ? e.message
-            : t('file.saveFailed'),
-        'error',
-        e instanceof AppTooOldError ? 9000 : undefined,
-      )
-    }
+  // Enregistrer ne bloque plus l'ecran: les fichiers partent dans la file
+  // commune et s'enregistrent un par un, dans l'ordre, pendant qu'on continue
+  // a naviguer. L'avancement se suit dans l'ecran Enregistrements.
+  const saveMany = async (chosen: FileRow[]) => {
+    if (!chosen.length) return
+    await queueExport(chosen)
+    toast(`${chosen.length} · ${t('file.queued')}`, 'success')
   }
 
-  // Enregistrer toute une selection. Un fichier a la fois: quatre videos en
-  // parallele saturent la ligne et font expirer les URL signees des autres.
-  const saveSelection = async () => {
-    const chosen = files.filter((f) => selection.has(f.id))
-    if (!chosen.length) return
-    setSaving({ done: 0, total: chosen.length })
-    let ok = 0
-    let stop: unknown = null
-    for (const f of chosen) {
-      try {
-        await saveFile(f)
-        ok += 1
-      } catch (e) {
-        // Une application trop ancienne ne se corrigera pas au fichier
-        // suivant: inutile d'insister cinquante fois.
-        if (e instanceof AppTooOldError) {
-          stop = e
-          break
-        }
-      }
-      setSaving((p) => (p ? { ...p, done: p.done + 1 } : p))
-    }
-    setSaving(null)
-    if (stop) toast(t('file.appTooOld'), 'error', 9000)
-    else toast(`${ok} · ${t('file.savedGallery')}`, 'success')
-  }
+  const saveOne = (f: FileRow) => saveMany([f])
+  const saveSelection = () => saveMany(files.filter((f) => selection.has(f.id)))
 
   // Un document n'a rien à faire dans la visionneuse: on l'enregistre.
   const openFile = (f: FileRow) => {
@@ -740,12 +707,10 @@ export default function FilesBrowser({
               )}
               <button
                 onClick={saveSelection}
-                disabled={!!saving}
-                className="flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-[var(--color-surface-2)] px-3 py-1.5 text-xs disabled:opacity-50"
+                className="flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-[var(--color-surface-2)] px-3 py-1.5 text-xs"
               >
-                {saving
-                  ? `${saving.done}/${saving.total}`
-                  : `⬇ ${t('action.download')}`}
+                ⬇ {t('action.download')}
+                {exporting > 0 ? ` (${exporting})` : ''}
               </button>
               <button
                 onClick={() => setMoving(true)}

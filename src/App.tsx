@@ -5,6 +5,7 @@ import { I18nProvider } from './lib/i18n'
 import { ThemeProvider } from './lib/theme'
 import { ToastProvider } from './lib/toast'
 import { QueueProvider } from './lib/queue'
+import { ExportProvider } from './lib/exports'
 import { Spinner } from './components/ui'
 import Layout from './components/Layout'
 import ErrorBoundary from './components/ErrorBoundary'
@@ -24,6 +25,7 @@ const Viewer = lazy(() => import('./screens/Viewer'))
 const ResetPassword = lazy(() => import('./screens/ResetPassword'))
 const Duplicates = lazy(() => import('./screens/Duplicates'))
 const FixDates = lazy(() => import('./screens/FixDates'))
+const Exports = lazy(() => import('./screens/Exports'))
 
 function Loader() {
   return (
@@ -50,9 +52,11 @@ function Gate() {
     )
   return (
     <QueueProvider>
-      <Suspense fallback={<Loader />}>
-        <AppRoutes />
-      </Suspense>
+      <ExportProvider>
+        <Suspense fallback={<Loader />}>
+          <AppRoutes />
+        </Suspense>
+      </ExportProvider>
     </QueueProvider>
   )
 }
@@ -72,6 +76,7 @@ function AppRoutes() {
         <Route path="/backup" element={<Backup />} />
         <Route path="/duplicates" element={<Duplicates />} />
         <Route path="/dates" element={<FixDates />} />
+        <Route path="/exports" element={<Exports />} />
       </Route>
       {/* Visionneuse plein écran (hors layout) */}
       <Route path="/view/:scope/:id" element={<Viewer />} />

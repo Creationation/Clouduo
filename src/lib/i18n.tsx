@@ -136,6 +136,17 @@ const dict = {
     'file.appTooOld':
       'Installe la nouvelle version de l’application pour enregistrer sur le téléphone',
     'file.savingMany': 'Enregistrement',
+    'file.queued': 'mis en attente d’enregistrement',
+    'exports.title': 'Enregistrements',
+    'exports.introApp':
+      'Les fichiers demandés sont enregistrés sur le téléphone, un par un, dans l’ordre. Tu peux continuer à naviguer.',
+    'exports.introWeb':
+      'Les fichiers demandés sont téléchargés un par un, dans l’ordre. Tu peux continuer à naviguer.',
+    'exports.empty': 'Aucun enregistrement demandé',
+    'exports.remaining': 'en attente',
+    'exports.clear': 'Vider la liste',
+    'exports.inGallery': 'galerie',
+    'exports.inDownloads': 'téléchargements',
     'file.saveFailed': 'Enregistrement impossible',
     'file.saving': 'Enregistrement…',
     'trash.title': 'Corbeille',
@@ -342,6 +353,17 @@ const dict = {
     'file.appTooOld':
       'Bitte die neue Version der App installieren, um auf dem Telefon zu speichern',
     'file.savingMany': 'Speichern',
+    'file.queued': 'zum Speichern eingereiht',
+    'exports.title': 'Speicherungen',
+    'exports.introApp':
+      'Die gewählten Dateien werden nacheinander auf dem Telefon gespeichert. Du kannst weiter navigieren.',
+    'exports.introWeb':
+      'Die gewählten Dateien werden nacheinander heruntergeladen. Du kannst weiter navigieren.',
+    'exports.empty': 'Keine Speicherungen angefragt',
+    'exports.remaining': 'ausstehend',
+    'exports.clear': 'Liste leeren',
+    'exports.inGallery': 'Galerie',
+    'exports.inDownloads': 'Downloads',
     'file.saveFailed': 'Speichern fehlgeschlagen',
     'file.saving': 'Wird gespeichert…',
     'trash.title': 'Papierkorb',

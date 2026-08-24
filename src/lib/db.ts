@@ -71,18 +71,49 @@ interface HashCacheEntry {
   hash: string
 }
 
+export type ExportStatus = 'pending' | 'running' | 'done' | 'error'
+
+/**
+ * Un enregistrement demandé (une photo qui part du cloud vers le téléphone).
+ *
+ * Persisté comme la file d'envoi, et pour la même raison: quitter l'écran,
+ * changer d'onglet ou fermer l'app ne doit pas faire disparaître un travail
+ * en cours. Aucun octet ici, seulement de quoi le refaire.
+ */
+export interface ExportItem {
+  id: string
+  fileId: string
+  name: string
+  r2_key: string
+  mime: string
+  status: ExportStatus
+  /** Où le fichier a atterri, une fois fini. */
+  where?: 'gallery' | 'downloads' | 'browser'
+  error?: string
+  createdAt: number
+}
+
 interface Schema extends DBSchema {
   queue: { key: string; value: StoredItem }
   blobs: { key: string; value: StoredBlob }
   hashcache: { key: string; value: HashCacheEntry }
+  exports: { key: string; value: ExportItem }
 }
 
 let dbp: Promise<IDBPDatabase<Schema>> | null = null
 
 export function db() {
   if (!dbp) {
-    dbp = openDB<Schema>('nuageduo', 2, {
-      upgrade(d) {
+    dbp = openDB<Schema>('nuageduo', 3, {
+      upgrade(d, oldVersion) {
+        // v3 seule: on ajoute la file des enregistrements, sans toucher au
+        // reste. Repasser par le nettoyage de la v2 viderait une file d'envoi
+        // en cours pour rien.
+        if (oldVersion >= 2) {
+          if (!d.objectStoreNames.contains('exports'))
+            d.createObjectStore('exports', { keyPath: 'id' })
+          return
+        }
         // On repart d'une file vide. C'est aussi ce qui rend l'espace occupé
         // par les copies accumulées en v1: les envois déjà terminés y
         // gardaient leurs octets tant que personne ne vidait la liste à la
@@ -95,6 +126,8 @@ export function db() {
         // Le cache d'empreintes est minuscule et évite de re-hasher: on le garde.
         if (!d.objectStoreNames.contains('hashcache'))
           d.createObjectStore('hashcache', { keyPath: 'key' })
+        if (!d.objectStoreNames.contains('exports'))
+          d.createObjectStore('exports', { keyPath: 'id' })
       },
     })
   }
@@ -170,3 +203,23 @@ export async function getCachedHash(key: string): Promise<string | undefined> {
 export async function setCachedHash(key: string, hash: string) {
   ;(await db()).put('hashcache', { key, hash })
 }
+
+// --- File des enregistrements ---
+
+export async function allExports(): Promise<ExportItem[]> {
+  const items = await (await db()).getAll('exports')
+  return items.sort((a, b) => a.createdAt - b.createdAt)
+}
+export async function putExport(item: ExportItem) {
+  ;(await db()).put('exports', item)
+}
+export async function putExports(items: ExportItem[]) {
+  const d = await db()
+  const tx = d.transaction('exports', 'readwrite')
+  for (const it of items) tx.store.put(it)
+  await tx.done
+}
+export async function deleteExport(id: string) {
+  ;(await db()).delete('exports', id)
+}
+
