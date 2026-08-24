@@ -10,7 +10,7 @@ import {
   moveToShared,
   type KindFilter,
 } from '../lib/files'
-import { signBatch, downloadOriginal } from '../lib/urls'
+import { signBatch } from '../lib/urls'
 import { saveFile } from '../lib/saveFile'
 import { createTransfer } from '../lib/transfers'
 import { setViewerList } from '../lib/viewerStore'
@@ -243,10 +243,23 @@ export default function FilesBrowser({
   const openFolder = (f: Folder) => setCrumbs([...crumbs, { id: f.id, name: f.name }])
   const goCrumb = (i: number) => setCrumbs(crumbs.slice(0, i + 1))
 
-  // Un document n'a rien à faire dans la visionneuse: on le télécharge.
+  // Tout est ecrit par l'app: la pellicule pour une photo ou une video,
+  // Telechargements pour un document. Le navigateur n'intervient que sur
+  // ordinateur, ou il est la seule voie possible.
+  const saveOne = async (f: FileRow) => {
+    try {
+      const where = await saveFile(f)
+      if (where === 'gallery') toast(t('file.savedGallery'), 'success')
+      else if (where === 'downloads') toast(t('file.savedDownloads'), 'success')
+    } catch (e) {
+      toast(e instanceof Error ? e.message : t('file.saveFailed'), 'error')
+    }
+  }
+
+  // Un document n'a rien à faire dans la visionneuse: on l'enregistre.
   const openFile = (f: FileRow) => {
     if (isDocs) {
-      downloadOriginal(f.r2_key, f.name)
+      void saveOne(f)
       return
     }
     setViewerList(files)
@@ -276,14 +289,7 @@ export default function FilesBrowser({
     // Une photo doit atterrir dans la Galerie, pas dans « Telechargements ».
     // saveFile s'en charge sur telephone et retombe sur le telechargement
     // classique ailleurs; on dit ensuite ou le fichier est reellement alle.
-    download: async (f: FileRow) => {
-      try {
-        const where = await saveFile(f)
-        if (where === 'gallery') toast(t('file.savedGallery'), 'success')
-      } catch (e) {
-        toast(e instanceof Error ? e.message : t('file.saveFailed'), 'error')
-      }
-    },
+    download: saveOne,
     edit: (f: FileRow) => setEditing(f),
     toShared: async (f: FileRow) => {
       await copyFile(f.id, 'shared', null)

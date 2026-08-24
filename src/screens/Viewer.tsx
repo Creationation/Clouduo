@@ -57,7 +57,14 @@ export default function Viewer() {
     setSaving(true)
     try {
       const where = await saveFile(file)
-      toast(where === 'gallery' ? t('file.savedGallery') : file.name, 'success')
+      toast(
+        where === 'gallery'
+          ? t('file.savedGallery')
+          : where === 'downloads'
+            ? t('file.savedDownloads')
+            : file.name,
+        'success',
+      )
     } catch (e) {
       toast(e instanceof Error ? e.message : t('file.saveFailed'), 'error')
     } finally {

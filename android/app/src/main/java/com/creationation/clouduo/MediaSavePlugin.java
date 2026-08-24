@@ -20,23 +20,26 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 
 /**
- * Enregistrement dans la pellicule du téléphone.
+ * Enregistrement sur le téléphone, sans jamais sortir de l'application.
  *
- * Le bouton de téléchargement de la page passait par un lien HTML, et un
- * navigateur ne sait écrire que dans « Téléchargements »: une photo récupérée
- * n'apparaissait donc jamais dans la Galerie, il fallait aller la chercher
- * dans le gestionnaire de fichiers. Seul MediaStore range un média là où
- * l'appareil photo le range, et MediaStore est une interface native.
+ * Le bouton passait par un lien HTML. Une WebView ne sait pas écrire un
+ * fichier: elle délègue au navigateur, qui ouvre l'adresse de stockage et
+ * dépose le fichier dans « Téléchargements ». On sortait donc de l'app, on
+ * voyait passer une adresse technique, et la photo n'arrivait jamais dans la
+ * Galerie. Ici tout se fait à l'intérieur: le natif télécharge lui-même et
+ * écrit via MediaStore, la seule interface qui range un média là où
+ * l'appareil photo le range.
+ *
+ * Photo et vidéo vont dans la pellicule, album « BubuCloud ». Un document n'a
+ * rien à faire dans la Galerie: il va dans Téléchargements, mais toujours
+ * écrit par l'app, sans passer par le navigateur.
  *
  * On passe l'URL signée au natif plutôt que les octets: une vidéo de deux
  * giga-octets traversant le pont en base64 ferait exploser la mémoire de la
- * WebView. L'URL est déjà valable une heure et n'a besoin d'aucun en-tête,
- * donc le natif peut télécharger directement.
+ * WebView. L'URL est déjà valable une heure et n'a besoin d'aucun en-tête.
  *
- * Aucune permission demandée: depuis Android 10, écrire un média que l'app
- * vient de créer se fait sans autorisation (stockage cloisonné). Sur plus
- * ancien, on refuse proprement et la page retombe sur le téléchargement
- * classique plutôt que de réclamer un accès à toute la mémoire.
+ * Aucune permission demandée: depuis Android 10, écrire un fichier que l'app
+ * vient de créer se fait sans autorisation (stockage cloisonné).
  */
 @CapacitorPlugin(name = "MediaSave")
 public class MediaSavePlugin extends Plugin {
@@ -51,6 +54,22 @@ public class MediaSavePlugin extends Plugin {
         JSObject r = new JSObject();
         r.put("supported", Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q);
         call.resolve(r);
+    }
+
+    /**
+     * Ou ranger ce fichier: pellicule pour une photo ou une video, dossier
+     * Telechargements pour le reste (un PDF n'a rien a faire dans la Galerie,
+     * mais il ne doit pas pour autant sortir de l'application pour arriver
+     * sur le telephone).
+     */
+    private static final int PHOTO = 0;
+    private static final int VIDEO = 1;
+    private static final int DOC = 2;
+
+    private static int destinationFor(String mime) {
+        if (mime.startsWith("image/")) return PHOTO;
+        if (mime.startsWith("video/")) return VIDEO;
+        return DOC;
     }
 
     @PluginMethod
@@ -74,17 +93,29 @@ public class MediaSavePlugin extends Plugin {
 
     private void run(PluginCall call, String url, String name, String mime) {
         ContentResolver cr = getContext().getContentResolver();
-        boolean video = mime.startsWith("video/");
-        Uri collection = video
-                ? MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
-                : MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY);
+        int dest = destinationFor(mime);
+
+        Uri collection;
+        String folder;
+        switch (dest) {
+            case VIDEO:
+                collection = MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY);
+                folder = Environment.DIRECTORY_MOVIES + "/" + ALBUM;
+                break;
+            case DOC:
+                collection = MediaStore.Downloads.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY);
+                folder = Environment.DIRECTORY_DOWNLOADS + "/" + ALBUM;
+                break;
+            default:
+                collection = MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY);
+                folder = Environment.DIRECTORY_PICTURES + "/" + ALBUM;
+                break;
+        }
 
         ContentValues values = new ContentValues();
         values.put(MediaStore.MediaColumns.DISPLAY_NAME, name);
         if (!mime.isEmpty()) values.put(MediaStore.MediaColumns.MIME_TYPE, mime);
-        values.put(
-                MediaStore.MediaColumns.RELATIVE_PATH,
-                (video ? Environment.DIRECTORY_MOVIES : Environment.DIRECTORY_PICTURES) + "/" + ALBUM);
+        values.put(MediaStore.MediaColumns.RELATIVE_PATH, folder);
         // IS_PENDING cache l'entrée tant que l'écriture n'est pas finie: sans
         // ça, une coupure réseau laisserait une vignette vide dans la Galerie.
         values.put(MediaStore.MediaColumns.IS_PENDING, 1);
@@ -117,6 +148,7 @@ public class MediaSavePlugin extends Plugin {
 
             JSObject r = new JSObject();
             r.put("uri", item.toString());
+            r.put("gallery", dest != DOC);
             call.resolve(r);
         } catch (Exception e) {
             // Ne rien laisser derrière: une entrée à moitié écrite polluerait
