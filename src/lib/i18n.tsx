@@ -133,6 +133,9 @@ const dict = {
     'file.saveGallery': 'Enregistrer dans la galerie',
     'file.savedGallery': 'Enregistré dans la galerie',
     'file.savedDownloads': 'Enregistré dans Téléchargements',
+    'file.appTooOld':
+      'Installe la nouvelle version de l’application pour enregistrer sur le téléphone',
+    'file.savingMany': 'Enregistrement',
     'file.saveFailed': 'Enregistrement impossible',
     'file.saving': 'Enregistrement…',
     'trash.title': 'Corbeille',
@@ -336,6 +339,9 @@ const dict = {
     'file.saveGallery': 'In Galerie speichern',
     'file.savedGallery': 'In Galerie gespeichert',
     'file.savedDownloads': 'In Downloads gespeichert',
+    'file.appTooOld':
+      'Bitte die neue Version der App installieren, um auf dem Telefon zu speichern',
+    'file.savingMany': 'Speichern',
     'file.saveFailed': 'Speichern fehlgeschlagen',
     'file.saving': 'Wird gespeichert…',
     'trash.title': 'Papierkorb',

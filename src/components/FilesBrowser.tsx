@@ -11,7 +11,7 @@ import {
   type KindFilter,
 } from '../lib/files'
 import { signBatch } from '../lib/urls'
-import { saveFile } from '../lib/saveFile'
+import { saveFile, AppTooOldError } from '../lib/saveFile'
 import { createTransfer } from '../lib/transfers'
 import { setViewerList } from '../lib/viewerStore'
 import { useAuth } from '../lib/auth'
@@ -118,6 +118,7 @@ export default function FilesBrowser({
   const [sheet, setSheet] = useState<FileRow | null>(null)
   const [editing, setEditing] = useState<FileRow | null>(null)
   const [selection, setSelection] = useState<Set<string>>(new Set())
+  const [saving, setSaving] = useState<{ done: number; total: number } | null>(null)
   const [moving, setMoving] = useState(false)
   const [sharing, setSharing] = useState(false)
   const [sending, setSending] = useState(false)
@@ -139,7 +140,54 @@ export default function FilesBrowser({
   // qui faisait « vieux gestionnaire de fichiers ». Un appui long les rappelle.
   const [picking, setPicking] = useState(false)
   const selecting = picking || selection.size > 0
+  // Appui long. Deux details qui l'empechaient de marcher sur un vrai doigt:
+  //  - le moindre mouvement annulait l'appui, or un doigt bouge toujours de
+  //    quelques pixels. On tolere donc une marge avant d'abandonner;
+  //  - au relachement, le clic de la tuile partait quand meme, et comme on
+  //    venait de passer en mode selection il DESELECTIONNAIT aussitot ce
+  //    qu'on venait de selectionner. Rien ne se passait, en apparence.
   const longPress = useRef<number | null>(null)
+  const pressAt = useRef<{ x: number; y: number } | null>(null)
+  const pressed = useRef(false)
+  const SLOP = 12 // pixels toleres avant de considerer que le doigt defile
+
+  const cancelPress = () => {
+    if (longPress.current) clearTimeout(longPress.current)
+    longPress.current = null
+    pressAt.current = null
+  }
+
+  // Memes gestes pour une tuile de galerie et pour une ligne de document.
+  const pressProps = (f: FileRow) => ({
+    onPointerDown: (e: React.PointerEvent) => {
+      pressAt.current = { x: e.clientX, y: e.clientY }
+      longPress.current = window.setTimeout(() => {
+        longPress.current = null
+        pressed.current = true
+        setPicking(true)
+        if (!selection.has(f.id)) toggle(f.id)
+        // Selectionner ET proposer quoi en faire: sans le menu, l'appui long
+        // ne menait nulle part.
+        setSheet(f)
+      }, 450)
+    },
+    onPointerUp: cancelPress,
+    onPointerMove: (e: React.PointerEvent) => {
+      const p = pressAt.current
+      if (!p) return
+      if (Math.abs(e.clientX - p.x) > SLOP || Math.abs(e.clientY - p.y) > SLOP)
+        cancelPress()
+    },
+    onPointerCancel: cancelPress,
+    onContextMenu: (e: React.MouseEvent) => e.preventDefault(),
+  })
+
+  // Un clic qui suit un appui long ne doit rien defaire: l'appui a tranche.
+  const afterPress = (): boolean => {
+    if (!pressed.current) return false
+    pressed.current = false
+    return true
+  }
 
   const folderId = crumbs[crumbs.length - 1].id
   const isDocs = mode === 'documents'
@@ -252,8 +300,43 @@ export default function FilesBrowser({
       if (where === 'gallery') toast(t('file.savedGallery'), 'success')
       else if (where === 'downloads') toast(t('file.savedDownloads'), 'success')
     } catch (e) {
-      toast(e instanceof Error ? e.message : t('file.saveFailed'), 'error')
+      toast(
+        e instanceof AppTooOldError
+          ? t('file.appTooOld')
+          : e instanceof Error
+            ? e.message
+            : t('file.saveFailed'),
+        'error',
+        e instanceof AppTooOldError ? 9000 : undefined,
+      )
     }
+  }
+
+  // Enregistrer toute une selection. Un fichier a la fois: quatre videos en
+  // parallele saturent la ligne et font expirer les URL signees des autres.
+  const saveSelection = async () => {
+    const chosen = files.filter((f) => selection.has(f.id))
+    if (!chosen.length) return
+    setSaving({ done: 0, total: chosen.length })
+    let ok = 0
+    let stop: unknown = null
+    for (const f of chosen) {
+      try {
+        await saveFile(f)
+        ok += 1
+      } catch (e) {
+        // Une application trop ancienne ne se corrigera pas au fichier
+        // suivant: inutile d'insister cinquante fois.
+        if (e instanceof AppTooOldError) {
+          stop = e
+          break
+        }
+      }
+      setSaving((p) => (p ? { ...p, done: p.done + 1 } : p))
+    }
+    setSaving(null)
+    if (stop) toast(t('file.appTooOld'), 'error', 9000)
+    else toast(`${ok} · ${t('file.savedGallery')}`, 'success')
   }
 
   // Un document n'a rien à faire dans la visionneuse: on l'enregistre.
@@ -556,15 +639,20 @@ export default function FilesBrowser({
               {isDocs ? (
                 <div className="flex flex-col gap-1.5">
                   {g.files.map((f) => (
-                    <DocRow
-                      key={f.id}
-                      file={f}
-                      locale={locale}
-                      selected={selection.has(f.id)}
-                      onToggle={() => toggle(f.id)}
-                      onOpen={() => openFile(f)}
-                      onMore={() => setSheet(f)}
-                    />
+                    <div key={f.id} {...pressProps(f)}>
+                      <DocRow
+                        file={f}
+                        locale={locale}
+                        selected={selection.has(f.id)}
+                        onToggle={() => toggle(f.id)}
+                        onOpen={() => {
+                          if (afterPress()) return
+                          if (selecting) toggle(f.id)
+                          else openFile(f)
+                        }}
+                        onMore={() => setSheet(f)}
+                      />
+                    </div>
                   ))}
                 </div>
               ) : (
@@ -577,31 +665,16 @@ export default function FilesBrowser({
                       // déjà coché, comme dans une galerie de téléphone. Le
                       // minuteur est annulé dès que le doigt bouge, sinon un
                       // simple défilement déclencherait la sélection.
-                      onPointerDown={() => {
-                        longPress.current = window.setTimeout(() => {
-                          longPress.current = null
-                          setPicking(true)
-                          toggle(f.id)
-                        }, 450)
-                      }}
-                      onPointerUp={() => {
-                        if (longPress.current) clearTimeout(longPress.current)
-                        longPress.current = null
-                      }}
-                      onPointerMove={() => {
-                        if (longPress.current) clearTimeout(longPress.current)
-                        longPress.current = null
-                      }}
-                      onPointerCancel={() => {
-                        if (longPress.current) clearTimeout(longPress.current)
-                        longPress.current = null
-                      }}
-                      onContextMenu={(e) => e.preventDefault()}
+                      {...pressProps(f)}
                     >
                       <FileTile
                         file={f}
                         thumbUrl={f.thumb_key ? thumbs[f.thumb_key] : undefined}
-                        onClick={() => (selecting ? toggle(f.id) : openFile(f))}
+                        onClick={() => {
+                          if (afterPress()) return
+                          if (selecting) toggle(f.id)
+                          else openFile(f)
+                        }}
                       />
                       {/* Une tuile nue tant qu'on ne sélectionne pas. */}
                       {selecting && (
@@ -665,6 +738,15 @@ export default function FilesBrowser({
                   <IconShared size={14} /> {t('shared.title')}
                 </button>
               )}
+              <button
+                onClick={saveSelection}
+                disabled={!!saving}
+                className="flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-[var(--color-surface-2)] px-3 py-1.5 text-xs disabled:opacity-50"
+              >
+                {saving
+                  ? `${saving.done}/${saving.total}`
+                  : `⬇ ${t('action.download')}`}
+              </button>
               <button
                 onClick={() => setMoving(true)}
                 className="flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-[var(--color-surface-2)] px-3 py-1.5 text-xs"

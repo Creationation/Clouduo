@@ -4,7 +4,7 @@ import type { FileRow } from '../lib/types'
 import { getFile } from '../lib/files'
 import { getViewerList } from '../lib/viewerStore'
 import { signOne } from '../lib/urls'
-import { saveFile } from '../lib/saveFile'
+import { saveFile, AppTooOldError } from '../lib/saveFile'
 import { useI18n } from '../lib/i18n'
 import { useToast } from '../lib/toast'
 import { IconClose, IconDownload, IconChevron } from '../components/icons'
@@ -66,7 +66,15 @@ export default function Viewer() {
         'success',
       )
     } catch (e) {
-      toast(e instanceof Error ? e.message : t('file.saveFailed'), 'error')
+      toast(
+        e instanceof AppTooOldError
+          ? t('file.appTooOld')
+          : e instanceof Error
+            ? e.message
+            : t('file.saveFailed'),
+        'error',
+        9000,
+      )
     } finally {
       setSaving(false)
     }

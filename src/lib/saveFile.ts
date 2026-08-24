@@ -55,6 +55,33 @@ export function isApp(): boolean {
   return plugin() !== null
 }
 
+/**
+ * Une application plus ancienne que le site.
+ *
+ * Le site est mis a jour tout seul, l'APK non: une application installee
+ * avant l'ajout de MediaSave execute le code d'aujourd'hui sans posseder le
+ * plugin. Capacitor repond alors "methode inconnue". Sans ce test, l'echec
+ * etait illisible: on croyait le telechargement casse alors qu'il manquait
+ * simplement la mise a jour de l'application.
+ */
+export class AppTooOldError extends Error {
+  constructor() {
+    super('app-too-old')
+    this.name = 'AppTooOldError'
+  }
+}
+
+function missingPlugin(e: unknown): boolean {
+  const m = (e instanceof Error ? e.message : String(e)).toLowerCase()
+  return (
+    m.includes('not implemented') ||
+    m.includes('unimplemented') ||
+    m.includes('does not have') ||
+    m.includes('not available') ||
+    m.includes('no such method')
+  )
+}
+
 /** Où le fichier a réellement atterri. */
 export type SaveResult = 'gallery' | 'downloads' | 'browser'
 
@@ -69,12 +96,17 @@ export async function saveFile(file: FileRow): Promise<SaveResult> {
   const p = plugin()
   if (p) {
     const url = await signOne(file.r2_key)
-    const res = await p.saveFromUrl({
-      url,
-      name: file.name,
-      mime: file.mime_type,
-    })
-    return res.gallery ? 'gallery' : 'downloads'
+    try {
+      const res = await p.saveFromUrl({
+        url,
+        name: file.name,
+        mime: file.mime_type,
+      })
+      return res.gallery ? 'gallery' : 'downloads'
+    } catch (e) {
+      if (missingPlugin(e)) throw new AppTooOldError()
+      throw e
+    }
   }
   // Ordinateur: le téléchargement du navigateur est la seule voie.
   await downloadOriginal(file.r2_key, file.name)

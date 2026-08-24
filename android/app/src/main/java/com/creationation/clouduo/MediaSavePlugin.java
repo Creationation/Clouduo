@@ -122,8 +122,25 @@ public class MediaSavePlugin extends Plugin {
 
         Uri item = null;
         HttpURLConnection conn = null;
+        boolean inGallery = dest != DOC;
         try {
-            item = cr.insert(collection, values);
+            try {
+                item = cr.insert(collection, values);
+            } catch (IllegalArgumentException bad) {
+                // MediaStore refuse un type qu'il ne reconnait pas pour cette
+                // collection (un HEIC exotique, un MIME generique). Plutot que
+                // d'echouer, on range le fichier dans Telechargements: mieux
+                // vaut sur le telephone qu'introuvable.
+                if (dest == DOC) throw bad;
+                inGallery = false;
+                values.put(
+                        MediaStore.MediaColumns.RELATIVE_PATH,
+                        Environment.DIRECTORY_DOWNLOADS + "/" + ALBUM);
+                values.remove(MediaStore.MediaColumns.MIME_TYPE);
+                item = cr.insert(
+                        MediaStore.Downloads.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY),
+                        values);
+            }
             if (item == null) throw new IOException("la galerie a refusé l'écriture");
 
             conn = (HttpURLConnection) new URL(url).openConnection();
@@ -148,7 +165,7 @@ public class MediaSavePlugin extends Plugin {
 
             JSObject r = new JSObject();
             r.put("uri", item.toString());
-            r.put("gallery", dest != DOC);
+            r.put("gallery", inGallery);
             call.resolve(r);
         } catch (Exception e) {
             // Ne rien laisser derrière: une entrée à moitié écrite polluerait
