@@ -44,7 +44,7 @@ let cached: ShareTargetPlugin | null | undefined
  * Il FAUT passer par registerPlugin: `Capacitor.Plugins.X` est l'ancienne
  * voie et ne fournit pas toujours addListener. Appeler une méthode absente
  * lève une exception dans un useEffect, React démonte alors tout l'arbre et
- * l'écran devient entièrement blanc — c'est exactement ce qui est arrivé sur
+ * l'écran devient entièrement blanc, c'est exactement ce qui est arrivé sur
  * le téléphone le 2026-07-27. D'où aussi le try/catch: aucun problème de
  * plugin ne doit pouvoir emporter l'interface.
  */

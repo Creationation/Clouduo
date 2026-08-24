@@ -7,6 +7,7 @@ import { Button, EmptyState, Spinner, formatBytes } from '../components/ui'
 
 interface Group {
   content_hash: string
+  scope: 'personal' | 'shared'
   copies: number
   distinct_objects: number
   size_bytes: number
@@ -22,7 +23,7 @@ interface Group {
  * La dédup à l'upload empêche de renvoyer un fichier connu, mais ne nettoie
  * pas l'existant. Le regroupement se fait sur l'empreinte sha-256: deux
  * fichiers renommés, ou arrivés par des chemins différents, sont détectés
- * comme identiques quel que soit leur type — photo, vidéo ou document.
+ * comme identiques quel que soit leur type: photo, vidéo ou document.
  */
 export default function Duplicates() {
   const { t, lang } = useI18n()
@@ -30,6 +31,13 @@ export default function Duplicates() {
   const [groups, setGroups] = useState<Group[]>([])
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState<string | null>(null)
+  const [cleaning, setCleaning] = useState<{ done: number; total: number } | null>(
+    null,
+  )
+
+  // Le hash ne suffit plus a identifier un groupe: le meme contenu peut
+  // exister a la fois chez moi et dans le Commun, et ce sont deux groupes.
+  const keyOf = (g: Group) => `${g.scope}:${g.content_hash}`
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -53,7 +61,7 @@ export default function Duplicates() {
   // autres à la corbeille: rien n'est détruit, la purge a 30 jours pour
   // laisser le temps de revenir en arrière.
   const cleanGroup = async (g: Group) => {
-    setBusy(g.content_hash)
+    setBusy(keyOf(g))
     try {
       for (const id of g.ids.slice(1)) await trashFile(id)
       toast(`${g.copies - 1} ${t('dup.movedToTrash')}`, 'success')
@@ -63,6 +71,30 @@ export default function Duplicates() {
     } finally {
       setBusy(null)
     }
+  }
+
+  // Tout d'un coup: la correction du 2026-08-24 empeche les nouveaux
+  // doublons, elle ne range pas ceux deja recus. Les traiter un par un sur un
+  // telephone n'est pas serieux quand il y en a cinquante.
+  const cleanAll = async () => {
+    const jobs = groups.flatMap((g) => g.ids.slice(1))
+    if (!jobs.length) return
+    setCleaning({ done: 0, total: jobs.length })
+    let ok = 0
+    for (const id of jobs) {
+      // Un echec isole (fichier deja retire entre temps) ne doit pas arreter
+      // le rangement: on continue et on annonce le compte reel a la fin.
+      try {
+        await trashFile(id)
+        ok += 1
+      } catch {
+        /* on passe au suivant */
+      }
+      setCleaning((p) => (p ? { ...p, done: p.done + 1 } : p))
+    }
+    setCleaning(null)
+    toast(`${ok} ${t('dup.movedToTrash')}`, 'success')
+    await load()
   }
 
   const totalWasted = groups.reduce((s, g) => s + Number(g.wasted_bytes || 0), 0)
@@ -92,6 +124,18 @@ export default function Duplicates() {
                 {formatBytes(totalWasted)}
               </span>
             </div>
+            <Button
+              onClick={cleanAll}
+              disabled={!!cleaning}
+              className="mt-3 w-full py-2 text-sm"
+            >
+              {cleaning
+                ? `${cleaning.done}/${cleaning.total}`
+                : t('dup.cleanAll')}
+            </Button>
+            <p className="mt-1.5 text-center text-xs text-[var(--color-muted)]">
+              {t('dup.cleanAllHint')}
+            </p>
           </div>
 
           <ul className="space-y-2">
@@ -100,7 +144,7 @@ export default function Duplicates() {
               // le dire évite de faire supprimer pour rien.
               const sameObject = g.distinct_objects === 1
               return (
-                <li key={g.content_hash} className="glass rounded-xl p-3">
+                <li key={keyOf(g)} className="glass rounded-xl p-3">
                   <div className="flex items-center gap-3">
                     <span className="text-xl">
                       {g.kind === 'video' ? '🎬' : g.kind === 'photo' ? '🖼️' : '📄'}
@@ -109,6 +153,7 @@ export default function Duplicates() {
                       <p className="truncate text-sm">{g.sample_name}</p>
                       <p className="text-xs text-[var(--color-muted)]">
                         {g.copies} {t('dup.copies')} ·{' '}
+                        {g.scope === 'shared' ? t('dup.inShared') : t('dup.inMine')} ·{' '}
                         {formatBytes(Number(g.size_bytes))}
                         {sameObject
                           ? ` · ${t('dup.sameObject')}`
@@ -118,10 +163,10 @@ export default function Duplicates() {
                     <Button
                       variant="ghost"
                       onClick={() => cleanGroup(g)}
-                      disabled={busy === g.content_hash}
+                      disabled={busy === keyOf(g) || !!cleaning}
                       className="shrink-0 px-3 py-2 text-xs"
                     >
-                      {busy === g.content_hash ? (
+                      {busy === keyOf(g) ? (
                         <Spinner className="h-4 w-4" />
                       ) : (
                         t('dup.keepOne')

@@ -3,7 +3,7 @@ import { Component, type ErrorInfo, type ReactNode } from 'react'
 /**
  * Sans ce garde-fou, la moindre exception pendant un rendu ou dans un
  * useEffect démonte tout l'arbre React et laisse un écran ENTIÈREMENT vide,
- * sans le moindre indice — arrivé sur le téléphone le 2026-07-27 à cause d'un
+ * sans le moindre indice, arrivé sur le téléphone le 2026-07-27 à cause d'un
  * plugin natif absent, impossible à diagnostiquer depuis l'appareil.
  *
  * On affiche désormais le message d'erreur et un bouton pour repartir.

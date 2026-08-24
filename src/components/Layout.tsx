@@ -87,6 +87,7 @@ const places: { to: string; key: TKey; Icon: typeof IconGallery }[] = [
   { to: '/docs', key: 'nav.docs', Icon: IconDoc },
   { to: '/backup', key: 'backup.title', Icon: IconRestore },
   { to: '/duplicates', key: 'dup.title', Icon: IconCopy },
+  { to: '/dates', key: 'dates.title', Icon: IconRestore },
   { to: '/trash', key: 'trash.title', Icon: IconTrash },
 ]
 

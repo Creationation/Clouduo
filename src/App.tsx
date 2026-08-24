@@ -23,6 +23,7 @@ const Backup = lazy(() => import('./screens/Backup'))
 const Viewer = lazy(() => import('./screens/Viewer'))
 const ResetPassword = lazy(() => import('./screens/ResetPassword'))
 const Duplicates = lazy(() => import('./screens/Duplicates'))
+const FixDates = lazy(() => import('./screens/FixDates'))
 
 function Loader() {
   return (
@@ -70,6 +71,7 @@ function AppRoutes() {
         <Route path="/trash" element={<Trash />} />
         <Route path="/backup" element={<Backup />} />
         <Route path="/duplicates" element={<Duplicates />} />
+        <Route path="/dates" element={<FixDates />} />
       </Route>
       {/* Visionneuse plein écran (hors layout) */}
       <Route path="/view/:scope/:id" element={<Viewer />} />

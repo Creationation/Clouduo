@@ -17,7 +17,7 @@ import type { Profile } from './types'
 interface AuthState {
   session: Session | null
   profile: Profile | null
-  /** L'autre utilisateur (il n'y en a que 2) — pour "Envoyer à...". */
+  /** L'autre utilisateur (il n'y en a que 2), pour "Envoyer à...". */
   other: Profile | null
   profiles: Profile[]
   loading: boolean
