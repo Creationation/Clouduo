@@ -104,20 +104,36 @@ export async function processItem(
     })
 
     // 2) Dédup: si ce hash existe déjà chez moi (actif), on n'upload pas.
-    const { data: dup } = await supabase
+    const { data: dup, error: dupErr } = await supabase
       .from('files')
-      .select('id')
+      .select('id, scope')
       .eq('owner_id', userId)
       .eq('content_hash', hash)
       .is('deleted_at', null)
-      .limit(1)
+      .order('created_at')
+    if (dupErr) throw dupErr
     if (dup && dup.length > 0) {
-      // Déjà chez moi: aucun ré-upload. Si c'était un envoi, on transfère la
-      // ligne existante plutôt que de renvoyer les octets.
-      if (item.sendToUserId) {
-        await offerTransfer(dup[0].id, userId, item)
+      // Déjà chez moi: aucun ré-upload. Mais « déjà sauvegardé » doit vouloir
+      // dire « tu le trouveras là où tu l'as envoyé ». Une photo présente
+      // seulement dans le Commun et renvoyée vers Mes fichiers n'apparaissait
+      // nulle part dans la galerie: on y crée une référence vers le même
+      // objet (aucun octet renvoyé, aucun espace en plus).
+      let fileId = dup.find((d) => d.scope === item.scope)?.id
+      if (!fileId) {
+        const { data: copied, error: copyErr } = await supabase.rpc('copy_file', {
+          p_file_id: dup[0].id,
+          p_target_scope: item.scope,
+          p_folder_id: item.folderId,
+        })
+        if (copyErr) throw copyErr
+        fileId = copied as string
       }
-      await update({ status: 'dedup', progress: 1 })
+      // Si c'était un envoi, on transfère la ligne existante plutôt que de
+      // renvoyer les octets.
+      if (item.sendToUserId) {
+        await offerTransfer(fileId, userId, item)
+      }
+      await update({ status: 'dedup', progress: 1, fileId })
       return
     }
   }
@@ -146,7 +162,7 @@ export async function processItem(
     .limit(1)
   if (already && already.length > 0) {
     if (item.sendToUserId) await offerTransfer(already[0].id, userId, item)
-    await update({ status: 'done', progress: 1 })
+    await update({ status: 'done', progress: 1, fileId: already[0].id })
     return
   }
 
@@ -177,7 +193,7 @@ export async function processItem(
     await offerTransfer(inserted.id, userId, item)
   }
 
-  await update({ status: 'done', progress: 1 })
+  await update({ status: 'done', progress: 1, fileId: inserted?.id })
 }
 
 /**

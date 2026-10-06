@@ -22,7 +22,7 @@ import { detectKind, resolveMime } from './media'
 import { useToast } from './toast'
 import { runExclusive } from './lane'
 import { processItem } from './uploader'
-import { invokeFunction } from './supabase'
+import { invokeFunction, supabase } from './supabase'
 import { uploadErrorKey } from './uploadErrors'
 import type { Scope } from './types'
 
@@ -39,6 +39,31 @@ const CONCURRENCY = 1
 // l'utilisateur que si on finit par abandonner.
 const RETRY_MAX = 6
 const retryDelay = (n: number) => Math.min(60_000, 1000 * 2 ** n)
+// Session expirée pendant que l'app dormait, ou URL signée périmée (HTTP 403):
+// une nouvelle session et une nouvelle signature suffisent presque toujours.
+const AUTH_RETRY_MAX = 2
+
+// Copie de sécurité des octets (pour reprendre après fermeture de l'app).
+// Sans limite, deux cents fichiers dont des vidéos de plusieurs centaines de
+// Mo étaient TOUS recopiés dans le stockage du site, en même temps que les
+// envois lisaient ces mêmes fichiers: le téléphone saturait, le stockage du
+// site refusait d'écrire et les envois tombaient en erreur rouge. Au-delà de
+// ces seuils, l'envoi part sans copie: il ne survivra pas à une fermeture de
+// l'app, mais il n'abîme plus rien.
+const BLOB_MAX_FILE = 300 * 1024 * 1024
+const BLOB_MAX_TOTAL = 1.5 * 1024 ** 3
+
+async function roomForBlob(size: number): Promise<boolean> {
+  if (size > BLOB_MAX_FILE) return false
+  try {
+    const est = await navigator.storage?.estimate?.()
+    if (!est?.quota) return true
+    const usage = est.usage ?? 0
+    return usage + size < Math.min(BLOB_MAX_TOTAL, est.quota * 0.5)
+  } catch {
+    return true
+  }
+}
 
 interface AddOptions {
   scope: Scope
@@ -115,7 +140,12 @@ export function QueueProvider({ children }: { children: ReactNode }) {
   }, [])
 
   // N'écrit QUE les métadonnées: les octets sont à part et ne bougent plus.
-  const persist = (it: QueueItem) => putItem(it)
+  //
+  // Une écriture refusée (stockage du site plein) ne doit JAMAIS faire échouer
+  // l'envoi lui-même: la file vit en mémoire, le disque ne sert qu'à reprendre
+  // après fermeture. Avant, la barre de progression qui n'arrivait pas à
+  // s'écrire faisait tomber un envoi qui se passait bien.
+  const persist = (it: QueueItem) => putItem(it).catch(() => {})
 
   // Un envoi terminé n'a plus besoin de ses octets: on les rend tout de suite,
   // sans attendre que quelqu'un vide la liste à la main.
@@ -171,9 +201,17 @@ export function QueueProvider({ children }: { children: ReactNode }) {
       } else {
         const msg = e instanceof Error ? e.message : String(e)
         const n = retries.current.get(item.id) ?? 0
-        // Perte de réseau: on retentera. Manque de place, session expirée ou
-        // fichier disparu ne se règlent pas en réessayant, donc on s'arrête.
-        if (uploadErrorKey(msg) === 'upload.errNet' && n < RETRY_MAX) {
+        const kind = uploadErrorKey(msg)
+        // Perte de réseau: on retentera. Session expirée: on la renouvelle et
+        // on retente, deux fois au plus. Manque de place ou fichier disparu
+        // ne se règlent pas en réessayant, donc on s'arrête.
+        const retryable =
+          (kind === 'upload.errNet' && n < RETRY_MAX) ||
+          (kind === 'upload.errAuth' && n < AUTH_RETRY_MAX)
+        if (retryable) {
+          if (kind === 'upload.errAuth') {
+            await supabase.auth.refreshSession().catch(() => {})
+          }
           retries.current.set(item.id, n + 1)
           waiting.current.add(item.id)
           item.status = 'pending'
@@ -251,6 +289,7 @@ export function QueueProvider({ children }: { children: ReactNode }) {
     // part quand même: il ne sera simplement pas reprenable. Jamais de blocage.
     for (const it of created) {
       if (!it.file || isFinished(it.status)) continue
+      if (!(await roomForBlob(it.file.size))) continue
       try {
         await putBlob(it.id, it.file)
         // Un petit fichier peut être arrivé avant qu'on ait fini de l'écrire:

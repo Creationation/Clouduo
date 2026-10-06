@@ -34,10 +34,11 @@ import java.net.URL;
  * rien à faire dans la Galerie: il va dans Téléchargements, mais toujours
  * écrit par l'app, sans passer par le navigateur.
  *
- * Le fichier est daté du jour de son enregistrement, pour arriver en haut de
- * la pile plutôt que d'être enfoui deux ans en arrière. Seul l'index de la
- * galerie est concerné: les octets ne sont pas touchés, l'EXIF garde la vraie
- * date de prise de vue et le cloud aussi.
+ * Le fichier est rangé à sa date de prise de vue, celle que connaît le cloud
+ * (`takenAt`), comme une photo prise avec l'appareil. Sans elle, MediaStore
+ * lisait l'EXIF quand il existe et, pour une image WhatsApp qui n'en a pas,
+ * prenait l'instant de la copie. Seul l'index de la galerie est concerné: les
+ * octets ne sont pas touchés.
  *
  * On passe l'URL signée au natif plutôt que les octets: une vidéo de deux
  * giga-octets traversant le pont en base64 ferait exploser la mémoire de la
@@ -82,6 +83,8 @@ public class MediaSavePlugin extends Plugin {
         final String url = call.getString("url");
         final String name = call.getString("name", "fichier");
         final String mime = call.getString("mime", "");
+        // Date de prise de vue en millisecondes, absente si le cloud l'ignore.
+        final Long takenAt = call.getLong("takenAt");
         if (url == null || url.isEmpty()) {
             call.reject("url manquante");
             return;
@@ -93,10 +96,10 @@ public class MediaSavePlugin extends Plugin {
 
         // Réseau et écriture disque: jamais sur le thread principal, sinon
         // l'interface se figerait le temps du transfert.
-        new Thread(() -> run(call, url, name, mime == null ? "" : mime)).start();
+        new Thread(() -> run(call, url, name, mime == null ? "" : mime, takenAt)).start();
     }
 
-    private void run(PluginCall call, String url, String name, String mime) {
+    private void run(PluginCall call, String url, String name, String mime, Long takenAt) {
         ContentResolver cr = getContext().getContentResolver();
         int dest = destinationFor(mime);
 
@@ -168,26 +171,23 @@ public class MediaSavePlugin extends Plugin {
             values.put(MediaStore.MediaColumns.IS_PENDING, 0);
             cr.update(item, values, null, null);
 
-            // Le fichier doit apparaitre EN HAUT de la galerie, a la date de
-            // son enregistrement, pas enfoui a la date de la prise de vue.
+            // Ranger le fichier a sa date de prise de vue.
             //
             // Ce n'est pas gagne d'avance: quand IS_PENDING retombe a zero,
             // MediaStore analyse le fichier et remplit DATE_TAKEN depuis
             // l'EXIF, ecrasant ce qu'on aurait mis a l'insertion. On repasse
-            // donc APRES l'analyse.
-            //
-            // Seul l'index de la galerie change. Les octets du fichier ne
-            // sont pas touches: l'EXIF garde la vraie date de prise de vue,
-            // et le cloud aussi. Rien n'est perdu, c'est un ordre d'affichage.
-            long now = System.currentTimeMillis();
-            ContentValues when = new ContentValues();
-            if (dest != DOC) when.put(MediaStore.MediaColumns.DATE_TAKEN, now);
-            when.put(MediaStore.MediaColumns.DATE_MODIFIED, now / 1000);
-            try {
-                cr.update(item, when, null, null);
-            } catch (Exception ignored) {
-                // Classement au pire a la date d'ajout, qui est deja
-                // aujourd'hui: le fichier est enregistre, c'est l'essentiel.
+            // donc APRES l'analyse. Sans date connue, on laisse MediaStore
+            // faire.
+            if (takenAt != null && takenAt > 0) {
+                ContentValues when = new ContentValues();
+                if (dest != DOC) when.put(MediaStore.MediaColumns.DATE_TAKEN, takenAt);
+                when.put(MediaStore.MediaColumns.DATE_MODIFIED, takenAt / 1000);
+                try {
+                    cr.update(item, when, null, null);
+                } catch (Exception ignored) {
+                    // Classement au pire a la date lue par MediaStore: le
+                    // fichier est enregistre, c'est l'essentiel.
+                }
             }
 
             JSObject r = new JSObject();

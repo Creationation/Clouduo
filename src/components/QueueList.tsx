@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom'
 import { useQueue } from '../lib/queue'
 import { useI18n } from '../lib/i18n'
 import { uploadErrorKey } from '../lib/uploadErrors'
@@ -13,6 +14,7 @@ function humanError(raw: string, t: ReturnType<typeof useI18n>['t']): string {
 
 function StatusPill({ item }: { item: QueueItem }) {
   const { t } = useI18n()
+  const nav = useNavigate()
   const map: Record<string, { label: string; cls: string }> = {
     pending: { label: '…', cls: 'text-[var(--color-muted)]' },
     processing: { label: '⚙', cls: 'text-[var(--color-muted)]' },
@@ -26,6 +28,19 @@ function StatusPill({ item }: { item: QueueItem }) {
     error: { label: '⚠', cls: 'text-[var(--color-danger)]' },
   }
   const s = map[item.status] ?? map.pending
+  // Terminé ou déjà présent: un appui ouvre le fichier là où il est rangé.
+  // Une photo de 2024 se range en 2024 dans la galerie, pas en haut: sans ce
+  // lien, « déjà sauvegardé » ressemblait à « perdu ».
+  if ((item.status === 'done' || item.status === 'dedup') && item.fileId) {
+    return (
+      <button
+        onClick={() => nav(`/view/${item.scope}/${item.fileId}`)}
+        className={`text-right text-xs font-medium ${s.cls}`}
+      >
+        {s.label} · <span className="underline">{t('upload.show')}</span>
+      </button>
+    )
+  }
   return <span className={`text-xs font-medium ${s.cls}`}>{s.label}</span>
 }
 

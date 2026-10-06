@@ -6,10 +6,31 @@ const QUALITY = 0.8
 // Génère une miniature WebP ~400px. FICHIER SÉPARÉ, l'original n'est jamais touché.
 // Retourne null si le navigateur ne sait pas décoder la source (HEIC/HEVC):
 // on retombe alors sur un placeholder + téléchargement de l'original.
-export async function makeThumbnail(
-  file: File,
-  kind: FileKind,
-): Promise<Blob | null> {
+//
+// Jamais plus de THUMB_TIMEOUT: certaines vidéos (HEVC, 4K, fichiers longs)
+// ne déclenchent ni `seeked` ni `error` dans la WebView. La promesse restait
+// pendante pour toujours, et comme la file traite un fichier à la fois, TOUS
+// les envois et enregistrements suivants restaient bloqués derrière. Une
+// miniature ratée n'empêche rien: le fichier part avec un aperçu générique.
+const THUMB_TIMEOUT = 20_000
+
+export function makeThumbnail(file: File, kind: FileKind): Promise<Blob | null> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(null), THUMB_TIMEOUT)
+    buildThumbnail(file, kind).then(
+      (b) => {
+        clearTimeout(timer)
+        resolve(b)
+      },
+      () => {
+        clearTimeout(timer)
+        resolve(null)
+      },
+    )
+  })
+}
+
+async function buildThumbnail(file: File, kind: FileKind): Promise<Blob | null> {
   try {
     if (kind === 'photo') {
       const bmp = await createImageBitmap(file)
@@ -56,20 +77,41 @@ function videoFrame(file: File): Promise<Blob | null> {
     video.muted = true
     video.playsInline = true
     const url = URL.createObjectURL(file)
-    const cleanup = () => URL.revokeObjectURL(url)
+    const cleanup = () => {
+      video.onloadedmetadata = video.onseeked = video.onerror = null
+      URL.revokeObjectURL(url)
+      // Libère le décodeur tout de suite au lieu d'attendre le ramasse-miettes:
+      // deux cents vidéos d'affilée épuisaient les décodeurs du téléphone.
+      video.removeAttribute('src')
+      video.load()
+    }
+    // Filet de sécurité: si rien ne répond, on rend la main (et le décodeur).
+    const guard = setTimeout(() => {
+      cleanup()
+      resolve(null)
+    }, THUMB_TIMEOUT - 1000)
+    const done = (b: Blob | null) => {
+      clearTimeout(guard)
+      resolve(b)
+    }
 
     video.onloadedmetadata = () => {
       // On vise ~1s (ou le milieu pour les clips très courts).
       video.currentTime = Math.min(1, (video.duration || 2) / 2)
     }
     video.onseeked = () => {
-      const blob = drawToWebp(video, video.videoWidth, video.videoHeight)
+      let blob: Blob | null = null
+      try {
+        blob = drawToWebp(video, video.videoWidth, video.videoHeight)
+      } catch {
+        /* image illisible: aperçu générique */
+      }
       cleanup()
-      resolve(blob)
+      done(blob)
     }
     video.onerror = () => {
       cleanup()
-      resolve(null)
+      done(null)
     }
     video.src = url
   })

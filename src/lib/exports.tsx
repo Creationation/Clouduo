@@ -17,6 +17,7 @@ import { runExclusive } from './lane'
 import { saveFile, AppTooOldError } from './saveFile'
 import { useI18n } from './i18n'
 import { useToast } from './toast'
+import { uploadErrorKey } from './uploadErrors'
 import type { FileRow } from './types'
 
 interface ExportContextValue {
@@ -33,6 +34,12 @@ const ExportContext = createContext<ExportContextValue>({} as ExportContextValue
 
 const isFinished = (s: ExportItem['status']) => s === 'done' || s === 'error'
 
+// Comme les envois: une coupure reseau au milieu de 200 enregistrements ne
+// doit pas laisser une colonne d'erreurs rouges. On reessaie tout seul, en
+// espacant, et on n'abandonne qu'apres plusieurs echecs.
+const RETRY_MAX = 6
+const retryDelay = (n: number) => Math.min(60_000, 2000 * 2 ** n)
+
 /**
  * File des enregistrements (cloud vers téléphone).
  *
@@ -46,6 +53,9 @@ export function ExportProvider({ children }: { children: ReactNode }) {
   const { show: notify } = useToast()
   const itemsRef = useRef<ExportItem[]>([])
   const running = useRef(false)
+  const retries = useRef<Map<string, number>>(new Map())
+  const waiting = useRef<Set<string>>(new Set())
+  const timers = useRef<Map<string, number>>(new Map())
   const [, setVersion] = useState(0)
   const rerender = () => setVersion((v) => v + 1)
 
@@ -71,7 +81,9 @@ export function ExportProvider({ children }: { children: ReactNode }) {
 
   const pump = () => {
     if (running.current) return
-    const next = itemsRef.current.find((i) => i.status === 'pending')
+    const next = itemsRef.current.find(
+      (i) => i.status === 'pending' && !waiting.current.has(i.id),
+    )
     if (!next) return
     running.current = true
     void runExclusive(async () => {
@@ -83,11 +95,38 @@ export function ExportProvider({ children }: { children: ReactNode }) {
           name: next.name,
           r2_key: next.r2_key,
           mime_type: next.mime,
+          taken_at: next.takenAt,
         })
         next.status = 'done'
         next.where = where
         next.error = undefined
+        retries.current.delete(next.id)
       } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e)
+        const n = retries.current.get(next.id) ?? 0
+        if (
+          !(e instanceof AppTooOldError) &&
+          uploadErrorKey(msg) === 'upload.errNet' &&
+          n < RETRY_MAX
+        ) {
+          // Reseau: le travail reste en attente, sans bandeau rouge.
+          retries.current.set(next.id, n + 1)
+          waiting.current.add(next.id)
+          next.status = 'pending'
+          next.error = undefined
+          await persist(next)
+          rerender()
+          const id = next.id
+          timers.current.set(
+            id,
+            window.setTimeout(() => {
+              timers.current.delete(id)
+              waiting.current.delete(id)
+              pump()
+            }, retryDelay(n)),
+          )
+          return
+        }
         next.status = 'error'
         next.error =
           e instanceof AppTooOldError
@@ -124,6 +163,7 @@ export function ExportProvider({ children }: { children: ReactNode }) {
       name: f.name,
       r2_key: f.r2_key,
       mime: f.mime_type,
+      takenAt: f.taken_at,
       status: 'pending',
       createdAt: Date.now(),
     }))
@@ -134,9 +174,18 @@ export function ExportProvider({ children }: { children: ReactNode }) {
     pump()
   }
 
+  const clearWait = (id: string) => {
+    const timer = timers.current.get(id)
+    if (timer) clearTimeout(timer)
+    timers.current.delete(id)
+    waiting.current.delete(id)
+  }
+
   const retry = (id: string) => {
     const it = itemsRef.current.find((i) => i.id === id)
     if (!it) return
+    retries.current.delete(id)
+    clearWait(id)
     it.status = 'pending'
     it.error = undefined
     persist(it)
@@ -145,6 +194,8 @@ export function ExportProvider({ children }: { children: ReactNode }) {
   }
 
   const remove = (id: string) => {
+    clearWait(id)
+    retries.current.delete(id)
     itemsRef.current = itemsRef.current.filter((i) => i.id !== id)
     deleteExport(id)
     rerender()
@@ -194,7 +245,12 @@ export function ExportProvider({ children }: { children: ReactNode }) {
 
   // Retour du réseau ou du premier plan: on relance sans attendre.
   useEffect(() => {
-    const wake = () => pump()
+    const wake = () => {
+      for (const timer of timers.current.values()) clearTimeout(timer)
+      timers.current.clear()
+      waiting.current.clear()
+      pump()
+    }
     const onVisible = () => {
       if (!document.hidden) wake()
     }

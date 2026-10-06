@@ -32,6 +32,12 @@ export function uploadErrorKey(message: string): UploadErrorKey | null {
     m.includes('réseau') ||
     m.includes('failed to fetch') ||
     m.includes('timeout') ||
+    // Messages Java du telechargement natif (enregistrement sur le telephone).
+    m.includes('timed out') ||
+    m.includes('unable to resolve host') ||
+    m.includes('connection') ||
+    m.includes('unexpected end of stream') ||
+    m.includes('socket') ||
     /http 5\d\d/.test(m)
   )
     return 'upload.errNet'

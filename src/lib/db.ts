@@ -55,6 +55,9 @@ export interface QueueItem {
    *  qui permet à la boîte de réception de les présenter comme un seul envoi
    *  au lieu d'une carte par fichier. */
   batchId?: string
+  /** La ligne `files` obtenue (envoyée ou déjà présente): permet d'ouvrir
+   *  le fichier depuis la file pour le retrouver. */
+  fileId?: string
   createdAt: number
 }
 
@@ -86,6 +89,7 @@ export interface ExportItem {
   name: string
   r2_key: string
   mime: string
+  takenAt?: string | null
   status: ExportStatus
   /** Où le fichier a atterri, une fois fini. */
   where?: 'gallery' | 'downloads' | 'browser'

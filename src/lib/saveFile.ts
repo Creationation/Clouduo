@@ -19,6 +19,9 @@ export interface Savable {
   name: string
   r2_key: string
   mime_type: string
+  /** Date de prise de vue connue du cloud: la galerie du telephone range le
+   *  fichier a ce jour-la, comme une photo prise avec l'appareil. */
+  taken_at?: string | null
 }
 
 interface MediaSavePlugin {
@@ -27,6 +30,7 @@ interface MediaSavePlugin {
     url: string
     name: string
     mime: string
+    takenAt?: number
   }): Promise<{ uri: string; gallery: boolean }>
 }
 
@@ -88,6 +92,13 @@ function missingPlugin(e: unknown): boolean {
   )
 }
 
+/** Une APK plus ancienne ignore ce champ: elle garde son propre classement. */
+function takenAtMs(iso: string | null | undefined): number | undefined {
+  if (!iso) return undefined
+  const ms = Date.parse(iso)
+  return Number.isFinite(ms) ? ms : undefined
+}
+
 /** Où le fichier a réellement atterri. */
 export type SaveResult = 'gallery' | 'downloads' | 'browser'
 
@@ -107,6 +118,7 @@ export async function saveFile(file: Savable): Promise<SaveResult> {
         url,
         name: file.name,
         mime: file.mime_type,
+        takenAt: takenAtMs(file.taken_at),
       })
       return res.gallery ? 'gallery' : 'downloads'
     } catch (e) {
