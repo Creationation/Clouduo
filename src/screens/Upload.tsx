@@ -8,7 +8,6 @@ import QueueList from '../components/QueueList'
 import Logo from '../components/Logo'
 import { IconSend } from '../components/icons'
 import { Button, Spinner, formatBytes } from '../components/ui'
-import { checkQuota } from '../lib/quota'
 import { useToast } from '../lib/toast'
 import {
   pendingShared,
@@ -76,30 +75,7 @@ export default function Upload() {
       return
     }
 
-    // Contrôle du plafond AVANT de mettre en file: prévenir une fois au
-    // départ vaut mieux que découvrir le problème après des heures d'envoi.
-    const incoming = files.reduce((s, f) => s + f.size, 0)
-    try {
-      const q = await checkQuota(incoming)
-      if (q.full) {
-        toast(
-          `${t('quota.full')} ${formatBytes(q.used)} / ${formatBytes(q.quota)}`,
-          'error',
-          9000,
-        )
-        return
-      }
-      if (q.near) {
-        toast(
-          `${t('quota.near')} ${formatBytes(q.used + incoming)} / ${formatBytes(q.quota)}`,
-          'warning',
-          8000,
-        )
-      }
-    } catch {
-      /* stats indisponibles: on n'empêche pas d'envoyer pour autant */
-    }
-
+    // Pas de plafond: R2 facture à l'usage, l'espace n'est jamais bloqué.
     const scope: Scope = dest === 'shared' ? 'shared' : 'personal'
     await add(files, {
       scope,

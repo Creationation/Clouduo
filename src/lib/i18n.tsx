@@ -191,9 +191,6 @@ const dict = {
     'dates.more': 'autres',
     'dup.note':
       "Rien n'est supprimé définitivement : les exemplaires partent à la corbeille, purgée après 30 jours.",
-    'quota.full': 'Plus assez de place pour cet envoi.',
-    'quota.near': 'Attention, le stockage arrive à saturation.',
-    'settings.quota': 'Plafond',
     'settings.lang': 'Langue',
     'settings.theme': 'Apparence',
     'theme.light': 'Clair',
@@ -408,9 +405,6 @@ const dict = {
     'dates.more': 'weitere',
     'dup.note':
       'Nichts wird endgültig gelöscht: Die Kopien landen im Papierkorb und werden nach 30 Tagen entfernt.',
-    'quota.full': 'Nicht genug Speicherplatz für diesen Upload.',
-    'quota.near': 'Achtung, der Speicher ist fast voll.',
-    'settings.quota': 'Limit',
     'settings.lang': 'Sprache',
     'settings.theme': 'Erscheinungsbild',
     'theme.light': 'Hell',
