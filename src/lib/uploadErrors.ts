@@ -8,9 +8,15 @@
  *
  * Renvoie une clé de traduction, ou null quand on ne sait pas: dans ce cas on
  * garde le message d'origine plutôt que d'inventer une explication.
+ *
+ * Piège déjà vécu: « blob », « storage » ou « disk » seuls étaient classés en
+ * « mémoire pleine ». Un fichier illisible (photo restée dans le cloud Google
+ * ou Samsung) affichait donc « plus d'espace » sur un téléphone à moitié vide.
+ * Seules les formulations qui disent vraiment « plein » comptent ici.
  */
 export type UploadErrorKey =
   | 'upload.errSpace'
+  | 'upload.errUnreadable'
   | 'upload.errMissing'
   | 'upload.errNet'
   | 'upload.errAuth'
@@ -18,14 +24,22 @@ export type UploadErrorKey =
 export function uploadErrorKey(message: string): UploadErrorKey | null {
   const m = message.toLowerCase()
   if (
-    m.includes('blob') ||
     m.includes('quota') ||
-    m.includes('space') ||
-    m.includes('disk') ||
-    m.includes('storage')
+    m.includes('failed to write blobs') ||
+    m.includes('no space') ||
+    m.includes('enough space') ||
+    m.includes('enospc')
   )
     return 'upload.errSpace'
-  if (m.includes('introuvable') || m.includes('notfound') || m.includes('notreadable'))
+  // Le téléphone a donné une référence mais pas les octets: le cas typique
+  // est une photo ancienne qui n'est plus que dans le cloud de la galerie.
+  if (
+    m.includes('notreadable') ||
+    m.includes('could not be read') ||
+    m.includes('fichier vide')
+  )
+    return 'upload.errUnreadable'
+  if (m.includes('introuvable') || m.includes('notfound'))
     return 'upload.errMissing'
   if (
     m.includes('network') ||
@@ -44,4 +58,15 @@ export function uploadErrorKey(message: string): UploadErrorKey | null {
   if (m.includes('authentifi') || m.includes('jwt') || /http 40[13]/.test(m))
     return 'upload.errAuth'
   return null
+}
+
+/** Message d'erreur avec son type (NotReadableError, QuotaExceededError...):
+ *  le message seul ne dit souvent rien de la cause. */
+export function errorText(e: unknown): string {
+  if (e instanceof Error) {
+    return e.name && e.name !== 'Error' && !e.message.includes(e.name)
+      ? `${e.name}: ${e.message}`
+      : e.message
+  }
+  return String(e)
 }

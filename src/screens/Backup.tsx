@@ -17,8 +17,10 @@ export default function Backup() {
     const active = items.some(
       (i) => i.status !== 'done' && i.status !== 'dedup' && i.status !== 'error',
     )
+    // Un échec dans la liste: pas de bandeau vert « tout est sauvegardé ».
+    const failed = items.some((i) => i.status === 'error')
     const bytes = finished.reduce((s, i) => s + i.size, 0)
-    return { count: finished.length, bytes, active }
+    return { count: finished.length, bytes, active: active || failed }
   }, [items])
 
   return (
@@ -35,8 +37,8 @@ export default function Backup() {
         accept="image/*,video/*"
         hidden
         onChange={(e) => {
-          if (e.target.files?.length)
-            add(e.target.files, { scope: 'personal' })
+          // Une liste vide passe aussi: add() le signale au lieu de se taire.
+          if (e.target.files) add(e.target.files, { scope: 'personal' })
           e.target.value = ''
         }}
       />
@@ -53,9 +55,7 @@ export default function Backup() {
             ✓ {recap.count}{' '}
             {recap.count > 1 ? t('common.files') : t('common.file')} · {formatBytes(recap.bytes)}
           </p>
-          <p className="mt-1 text-[var(--color-muted)]">
-            Tu peux maintenant libérer de l'espace sur ton téléphone.
-          </p>
+          <p className="mt-1 text-[var(--color-muted)]">{t('backup.freeSpace')}</p>
         </div>
       )}
 

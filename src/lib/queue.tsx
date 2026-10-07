@@ -23,7 +23,7 @@ import { useToast } from './toast'
 import { runExclusive } from './lane'
 import { processItem } from './uploader'
 import { invokeFunction, supabase } from './supabase'
-import { uploadErrorKey } from './uploadErrors'
+import { errorText, uploadErrorKey } from './uploadErrors'
 import type { Scope } from './types'
 
 // Un fichier à la fois. Trois envois simultanés ne vont pas plus vite (la
@@ -199,7 +199,7 @@ export function QueueProvider({ children }: { children: ReactNode }) {
         // Abort volontaire: pause si demandée, sinon l'item a été retiré.
         if (pausedIds.current.has(item.id)) setStatus(item, 'paused')
       } else {
-        const msg = e instanceof Error ? e.message : String(e)
+        const msg = errorText(e)
         const n = retries.current.get(item.id) ?? 0
         const kind = uploadErrorKey(msg)
         // Perte de réseau: on retentera. Session expirée: on la renouvelle et
@@ -255,12 +255,22 @@ export function QueueProvider({ children }: { children: ReactNode }) {
 
   const add: QueueContextValue['add'] = async (files, opts) => {
     const created: QueueItem[] = []
+    // Le sélecteur Android peut revenir sans rien (photo seulement dans le
+    // cloud de la galerie): sans ce message, rien ne bougeait et l'écran
+    // continuait d'afficher le résumé vert des envois précédents.
+    if (files.length === 0) {
+      notify?.(t('upload.emptyPick'), 'error')
+      return
+    }
     // Un identifiant par sélection: c'est ce qui permet à la boîte de
     // réception de présenter « 20 fichiers » en un seul envoi plutôt qu'en
     // vingt cartes à traiter une par une.
     const batchId = opts.sendToUserId ? uuid() : undefined
     for (const file of Array.from(files)) {
       const mime = resolveMime(file)
+      // Zéro octet: le téléphone a donné un nom sans contenu. Inutile de
+      // l'envoyer, on le dit tout de suite au lieu de créer un fichier vide.
+      const empty = file.size === 0
       created.push({
         id: uuid(),
         file,
@@ -270,7 +280,8 @@ export function QueueProvider({ children }: { children: ReactNode }) {
         kind: detectKind(mime),
         scope: opts.scope,
         folderId: opts.folderId ?? null,
-        status: 'pending',
+        status: empty ? 'error' : 'pending',
+        error: empty ? 'fichier vide' : undefined,
         progress: 0,
         sendToUserId: opts.sendToUserId,
         note: opts.note,
@@ -288,7 +299,7 @@ export function QueueProvider({ children }: { children: ReactNode }) {
     // fermeture de l'app. Si le stockage refuse (téléphone plein), l'envoi
     // part quand même: il ne sera simplement pas reprenable. Jamais de blocage.
     for (const it of created) {
-      if (!it.file || isFinished(it.status)) continue
+      if (!it.file || isFinished(it.status) || it.status === 'error') continue
       if (!(await roomForBlob(it.file.size))) continue
       try {
         await putBlob(it.id, it.file)

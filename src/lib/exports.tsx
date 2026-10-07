@@ -17,7 +17,7 @@ import { runExclusive } from './lane'
 import { saveFile, AppTooOldError } from './saveFile'
 import { useI18n } from './i18n'
 import { useToast } from './toast'
-import { uploadErrorKey } from './uploadErrors'
+import { errorText, uploadErrorKey } from './uploadErrors'
 import type { FileRow } from './types'
 
 interface ExportContextValue {
@@ -102,7 +102,7 @@ export function ExportProvider({ children }: { children: ReactNode }) {
         next.error = undefined
         retries.current.delete(next.id)
       } catch (e) {
-        const msg = e instanceof Error ? e.message : String(e)
+        const msg = errorText(e)
         const n = retries.current.get(next.id) ?? 0
         if (
           !(e instanceof AppTooOldError) &&

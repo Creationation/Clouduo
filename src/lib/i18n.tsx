@@ -106,6 +106,11 @@ const dict = {
     'upload.dedup': 'Déjà sauvegardé',
     'upload.show': 'Voir',
     'upload.errSpace': 'mémoire du téléphone pleine, libère un peu de place',
+    'upload.errUnreadable':
+      "photo illisible : elle n'est sans doute que dans le cloud de la galerie. Ouvre-la dans la galerie pour la télécharger, puis réessaie",
+    'upload.clear': 'Vider la liste',
+    'upload.emptyPick': 'Aucun fichier reçu du téléphone',
+    'backup.freeSpace': "Tu peux maintenant libérer de l'espace sur ton téléphone.",
     'upload.errNet': 'connexion perdue, réessaie',
     'upload.errAuth': 'session expirée, reconnecte-toi',
     'upload.errMissing': 'fichier introuvable, sélectionne-le à nouveau',
@@ -321,6 +326,11 @@ const dict = {
     'upload.dedup': 'Bereits gesichert',
     'upload.show': 'Ansehen',
     'upload.errSpace': 'Speicher des Telefons voll, bitte Platz schaffen',
+    'upload.errUnreadable':
+      'Foto nicht lesbar: es liegt vermutlich nur in der Cloud der Galerie. In der Galerie öffnen, damit es heruntergeladen wird, dann erneut versuchen',
+    'upload.clear': 'Liste leeren',
+    'upload.emptyPick': 'Keine Datei vom Telefon erhalten',
+    'backup.freeSpace': 'Du kannst jetzt Platz auf deinem Telefon freigeben.',
     'upload.errNet': 'Verbindung verloren, bitte erneut versuchen',
     'upload.errAuth': 'Sitzung abgelaufen, bitte neu anmelden',
     'upload.errMissing': 'Datei nicht gefunden, bitte erneut auswählen',

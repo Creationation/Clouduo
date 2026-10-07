@@ -5,11 +5,13 @@ import { uploadErrorKey } from '../lib/uploadErrors'
 import { formatBytes } from './ui'
 import type { QueueItem } from '../lib/db'
 
-// L'erreur brute du navigateur ne parle qu'aux développeurs: on la remplace
-// par une phrase utile quand on sait de quoi il s'agit.
+// L'erreur brute du navigateur ne parle qu'aux développeurs: on la précède
+// d'une phrase utile quand on sait de quoi il s'agit. Le message d'origine
+// reste affiché à la suite: une capture d'écran doit suffire à trouver la
+// vraie cause (un faux « mémoire pleine » l'a déjà cachée).
 function humanError(raw: string, t: ReturnType<typeof useI18n>['t']): string {
   const key = uploadErrorKey(raw)
-  return key ? t(key) : raw
+  return key ? `${t(key)} (${raw})` : raw
 }
 
 function StatusPill({ item }: { item: QueueItem }) {
@@ -62,7 +64,7 @@ export default function QueueList() {
             onClick={clearFinished}
             className="text-xs text-[var(--color-muted)] underline"
           >
-            {t('upload.done')}
+            {t('upload.clear')}
           </button>
         )}
       </div>
